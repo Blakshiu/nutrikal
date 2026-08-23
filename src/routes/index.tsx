@@ -19,7 +19,7 @@ import { TACO_FOODS, type TacoFood } from "@/lib/taco-data";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "NutriTech — Calculadora de Macros com Tabela TACO" },
+      { title: "NUTRIKAL — Calculadora de Macros com Tabela TACO" },
       {
         name: "description",
         content:
@@ -27,7 +27,7 @@ export const Route = createFileRoute("/")({
       },
       {
         property: "og:title",
-        content: "NutriTech — Calculadora de Macros com Tabela TACO",
+        content: "NUTRIKAL — Calculadora de Macros com Tabela TACO",
       },
       {
         property: "og:description",
@@ -104,12 +104,12 @@ function Header() {
   return (
     <header className={`site-header ${scrolled ? "is-scrolled" : ""}`}>
       <div className="container-x site-header__inner">
-        <a href="#inicio" className="logo" aria-label="NutriTech — início">
+        <a href="#inicio" className="logo" aria-label="NUTRIKAL — início">
           <span className="logo__mark">
             <Leaf size={17} strokeWidth={2.5} />
           </span>
           <span className="logo__name">
-            Nutri<em>Tech</em>
+            NUTRI<em>KAL</em>
           </span>
         </a>
 
@@ -294,6 +294,40 @@ interface MacroTotals {
   gorduras: number;
 }
 
+type DietGoal = "emagrecimento" | "manutencao" | "ganho";
+
+interface DietItem {
+  id: string;
+  nome: string;
+  categoria: string;
+  gramas: number;
+  kcal: number;
+  carboidratos: number;
+  proteinas: number;
+  gorduras: number;
+}
+
+const GOAL_OPTIONS: Record<
+  DietGoal,
+  { label: string; description: string; emphasis: string }
+> = {
+  emagrecimento: {
+    label: "Emagrecimento",
+    description: "Prioriza déficit calórico com maior saciedade e controle de porções.",
+    emphasis: "Deficit calórico orientado para perda de gordura.",
+  },
+  manutencao: {
+    label: "Manutenção",
+    description: "Mantém energia e performance com equilíbrio de macros e porções estáveis.",
+    emphasis: "Equilíbrio para sustentar treino, energia e composição corporal.",
+  },
+  ganho: {
+    label: "Ganho",
+    description: "Aumenta a ingestão total com foco em reforço de massa e recuperação.",
+    emphasis: "Superávit calórico com foco em performance e ganho de massa.",
+  },
+};
+
 /**
  * Lógica de cálculo proporcional (regra de três):
  *
@@ -356,15 +390,362 @@ function Calculadora() {
   );
   const [gramas, setGramas] = useState("100");
   const [comboOpen, setComboOpen] = useState(false);
+  const [categoria, setCategoria] = useState("Todos");
+  const [diet, setDiet] = useState<DietItem[]>([]);
+  const [dietGoal, setDietGoal] = useState<DietGoal>("manutencao");
+  const [patientName, setPatientName] = useState("Paciente");
+  const [reportDate, setReportDate] = useState(() =>
+    new Date().toISOString().slice(0, 10),
+  );
 
-  /* Filtra o mock TACO pelo texto digitado (sem acento/case). */
+  const categorias = useMemo(
+    () =>
+      ["Todos", ...new Set(TACO_FOODS.map((food) => food.categoria))].sort((a, b) =>
+        a.localeCompare(b, "pt-BR"),
+      ),
+    [],
+  );
+
+  /* Filtra a TACO pelo texto digitado e pela categoria selecionada. */
   const filtered = useMemo(() => {
     const q = normalize(query);
-    return TACO_FOODS.filter((f) => normalize(f.nome).includes(q));
-  }, [query]);
+    return [...TACO_FOODS]
+      .filter((f) => normalize(f.nome).includes(q))
+      .filter((f) => categoria === "Todos" || f.categoria === categoria)
+      .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+  }, [query, categoria]);
 
-  const tacos = filtered.filter((f) => f.categoria === "taco");
-  const suplementos = filtered.filter((f) => f.categoria === "suplemento");
+  const groupedFoods = useMemo(() => {
+    const groups = new Map<string, TacoFood[]>();
+    for (const food of filtered) {
+      const key = food.categoria;
+      const current = groups.get(key) ?? [];
+      current.push(food);
+      groups.set(key, current);
+    }
+    return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b, "pt-BR"));
+  }, [filtered]);
+
+  const dietaTotal = useMemo(
+    () =>
+      diet.reduce(
+        (sum, item) => ({
+          kcal: sum.kcal + item.kcal,
+          carboidratos: sum.carboidratos + item.carboidratos,
+          proteinas: sum.proteinas + item.proteinas,
+          gorduras: sum.gorduras + item.gorduras,
+        }),
+        { kcal: 0, carboidratos: 0, proteinas: 0, gorduras: 0 },
+      ),
+    [diet],
+  );
+
+  const addFoodToDiet = () => {
+    if (!selected) return;
+
+    const grams = parseFloat(gramas.replace(",", ".")) || 0;
+    if (grams <= 0) return;
+
+    const factor = grams / 100;
+    const item: DietItem = {
+      id: selected.id,
+      nome: selected.nome,
+      categoria: selected.categoria,
+      gramas: grams,
+      kcal: selected.por100g.kcal * factor,
+      carboidratos: selected.por100g.carboidratos * factor,
+      proteinas: selected.por100g.proteinas * factor,
+      gorduras: selected.por100g.gorduras * factor,
+    };
+
+    setDiet((prev) => {
+      const existing = prev.find((entry) => entry.id === selected.id);
+      if (!existing) return [...prev, item];
+
+      return prev.map((entry) =>
+        entry.id === selected.id
+          ? {
+              ...entry,
+              gramas: entry.gramas + grams,
+              kcal: entry.kcal + item.kcal,
+              carboidratos: entry.carboidratos + item.carboidratos,
+              proteinas: entry.proteinas + item.proteinas,
+              gorduras: entry.gorduras + item.gorduras,
+            }
+          : entry,
+      );
+    });
+  };
+
+  const removeFromDiet = (id: string) => {
+    setDiet((prev) => prev.filter((item) => item.id !== id));
+  };
+
+  const exportDiet = (format: "pdf" | "doc") => {
+    if (diet.length === 0) return;
+
+    const safePatientName = patientName.trim() || "Paciente";
+    const reportDateLabel = reportDate
+      ? new Date(`${reportDate}T12:00:00`).toLocaleDateString("pt-BR", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+        })
+      : new Date().toLocaleDateString("pt-BR", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+        });
+    const goalLabel = GOAL_OPTIONS[dietGoal].label;
+    const confirmed = window.confirm(
+      format === "pdf"
+        ? `O relatório de ${safePatientName} para ${goalLabel.toLowerCase()} está pronto para exportar em PDF?`
+        : `O relatório de ${safePatientName} para ${goalLabel.toLowerCase()} está pronto para exportar em Word?`,
+    );
+
+    if (!confirmed) return;
+
+    const rows = diet
+      .map(
+        (item) => `
+          <tr>
+            <td>${item.nome}</td>
+            <td>${formatNumber(item.gramas)} g</td>
+            <td>${formatNumber(item.kcal)} kcal</td>
+            <td>${formatNumber(item.proteinas)} g</td>
+            <td>${formatNumber(item.carboidratos)} g</td>
+            <td>${formatNumber(item.gorduras)} g</td>
+          </tr>`,
+      )
+      .join("");
+
+    const html = `
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <title>NUTRIKAL — Plano alimentar</title>
+          <style>
+            :root {
+              --pink: #e7a6b0;
+              --pink-strong: #c56b74;
+              --brown: #5d3b35;
+              --cream: #fff8f7;
+              --line: #ebd5d9;
+              --text: #3f2c2a;
+              --muted: #7a5d5d;
+            }
+
+            * { box-sizing: border-box; }
+            body {
+              margin: 0;
+              padding: 32px;
+              font-family: Arial, sans-serif;
+              color: var(--text);
+              background: var(--cream);
+            }
+            .report {
+              max-width: 980px;
+              margin: 0 auto;
+              background: #fff;
+              border: 1px solid var(--line);
+              border-radius: 18px;
+              overflow: hidden;
+              box-shadow: 0 14px 40px rgba(93, 59, 53, 0.08);
+            }
+            .header {
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              padding: 24px 30px;
+              background: linear-gradient(135deg, #fbe9ed 0%, #f5dfe3 100%);
+              border-bottom: 1px solid var(--line);
+            }
+            .brand {
+              display: flex;
+              align-items: center;
+              gap: 10px;
+              font-size: 22px;
+              font-weight: 700;
+              letter-spacing: 0.05em;
+              color: var(--brown);
+            }
+            .brand-mark {
+              width: 28px;
+              height: 28px;
+              border-radius: 8px;
+              display: inline-flex;
+              align-items: center;
+              justify-content: center;
+              background: linear-gradient(135deg, var(--pink) 0%, var(--pink-strong) 100%);
+              color: white;
+              font-weight: 700;
+            }
+            .header small {
+              color: var(--muted);
+              font-size: 12px;
+              letter-spacing: 0.08em;
+              text-transform: uppercase;
+            }
+            .content {
+              padding: 28px 30px 32px;
+            }
+            .summary-bar {
+              display: grid;
+              grid-template-columns: repeat(4, minmax(140px, 1fr));
+              gap: 12px;
+              margin-bottom: 22px;
+            }
+            .kpi {
+              background: #fff9f9;
+              border: 1px solid var(--line);
+              border-radius: 12px;
+              padding: 14px 16px;
+            }
+            .kpi-label {
+              display: block;
+              font-size: 11px;
+              letter-spacing: 0.1em;
+              text-transform: uppercase;
+              color: var(--muted);
+              margin-bottom: 6px;
+            }
+            .kpi-value {
+              font-size: 22px;
+              font-weight: 700;
+              color: var(--brown);
+            }
+            .goal {
+              margin-bottom: 20px;
+              padding: 14px 16px;
+              border-left: 4px solid var(--pink-strong);
+              background: #fff6f7;
+              border-radius: 10px;
+              color: var(--brown);
+              font-weight: 600;
+            }
+            .goal span { color: var(--muted); font-weight: 500; }
+            .patient-meta {
+              display: flex;
+              gap: 18px;
+              flex-wrap: wrap;
+              padding: 14px 16px;
+              background: #ffffff;
+              border: 1px solid var(--line);
+              border-radius: 10px;
+              margin-bottom: 18px;
+              color: var(--brown);
+              font-weight: 600;
+            }
+            .patient-meta span {
+              color: var(--muted);
+              font-weight: 500;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-top: 12px;
+              font-size: 14px;
+            }
+            th, td {
+              border: 1px solid var(--line);
+              padding: 11px 10px;
+              text-align: left;
+            }
+            th {
+              background: #f8edf0;
+              color: var(--brown);
+              font-weight: 700;
+            }
+            tbody tr:nth-child(even) { background: #fffaf9; }
+            .footer-note {
+              margin-top: 18px;
+              font-size: 12px;
+              color: var(--muted);
+            }
+          </style>
+        </head>
+        <body>
+          <div class="report">
+            <div class="header">
+              <div class="brand">
+                <span class="brand-mark">N</span>
+                NUTRIKAL
+              </div>
+              <small>Plano alimentar · ${goalLabel}</small>
+            </div>
+
+            <div class="content">
+              <div class="summary-bar">
+                <div class="kpi">
+                  <span class="kpi-label">Calorias</span>
+                  <span class="kpi-value">${formatNumber(dietaTotal.kcal)} kcal</span>
+                </div>
+                <div class="kpi">
+                  <span class="kpi-label">Proteína</span>
+                  <span class="kpi-value">${formatNumber(dietaTotal.proteinas)} g</span>
+                </div>
+                <div class="kpi">
+                  <span class="kpi-label">Carboidratos</span>
+                  <span class="kpi-value">${formatNumber(dietaTotal.carboidratos)} g</span>
+                </div>
+                <div class="kpi">
+                  <span class="kpi-label">Gorduras</span>
+                  <span class="kpi-value">${formatNumber(dietaTotal.gorduras)} g</span>
+                </div>
+              </div>
+
+              <div class="patient-meta">
+                <div>Paciente: <strong>${safePatientName}</strong></div>
+                <div>Data: <span>${reportDateLabel}</span></div>
+              </div>
+
+              <div class="goal">
+                Objetivo: ${goalLabel} <span>· ${GOAL_OPTIONS[dietGoal].emphasis}</span>
+              </div>
+
+              <table>
+                <thead>
+                  <tr>
+                    <th>Alimento</th>
+                    <th>Quantidade</th>
+                    <th>Calorias</th>
+                    <th>Proteína</th>
+                    <th>Carboidratos</th>
+                    <th>Gorduras</th>
+                  </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+              </table>
+
+              <div class="footer-note">
+                Documento gerado pela calculadora NUTRIKAL com base na Tabela TACO.
+              </div>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+
+    if (format === "pdf") {
+      const printWindow = window.open("", "_blank", "width=1100,height=900");
+      if (!printWindow) return;
+      printWindow.document.write(html);
+      printWindow.document.close();
+      printWindow.focus();
+      printWindow.print();
+      return;
+    }
+
+    const blob = new Blob([html], {
+      type: "application/vnd.ms-word; charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `nutrikal-dieta-${dietGoal}.doc`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
 
   /* Recalcula em tempo real a cada input de alimento ou gramagem. */
   const gramasNum = parseFloat(gramas.replace(",", ".")) || 0;
@@ -453,8 +834,7 @@ function Calculadora() {
                         Nenhum alimento encontrado para “{query}”.
                       </div>
                     )}
-                    {renderGroup("Tabela TACO", tacos)}
-                    {renderGroup("Suplementos (demo)", suplementos)}
+                    {groupedFoods.map(([label, items]) => renderGroup(label, items))}
                   </div>
                 )}
               </div>
@@ -466,6 +846,42 @@ function Calculadora() {
                   {formatNumber(selected.por100g.gorduras)} g gord — por 100 g
                 </p>
               )}
+            </div>
+
+            <div className="field">
+              <label htmlFor="category-filter">Categoria</label>
+              <select
+                id="category-filter"
+                className="input"
+                value={categoria}
+                onChange={(e) => setCategoria(e.target.value)}
+              >
+                {categorias.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+              <p className="field-hint">
+                Explore a base completa da TACO por categoria e encontre o alimento certo.
+              </p>
+            </div>
+
+            <div className="field">
+              <label htmlFor="diet-goal">Objetivo da dieta</label>
+              <div className="goal-selector" id="diet-goal">
+                {(Object.keys(GOAL_OPTIONS) as DietGoal[]).map((goal) => (
+                  <button
+                    key={goal}
+                    type="button"
+                    className={`goal-option ${dietGoal === goal ? "is-selected" : ""}`}
+                    onClick={() => setDietGoal(goal)}
+                  >
+                    {GOAL_OPTIONS[goal].label}
+                  </button>
+                ))}
+              </div>
+              <p className="field-hint">{GOAL_OPTIONS[dietGoal].description}</p>
             </div>
 
             <div className="field">
@@ -484,6 +900,12 @@ function Calculadora() {
               <p className="field-hint">
                 O cálculo aplica regra de três sobre a base oficial de 100 g.
               </p>
+            </div>
+
+            <div className="diet-actions">
+              <button type="button" className="btn btn-primary" onClick={addFoodToDiet}>
+                Adicionar alimento
+              </button>
             </div>
           </div>
 
@@ -556,6 +978,83 @@ function Calculadora() {
               </div>
             </div>
           </div>
+
+          <div className="diet-panel glass" data-reveal>
+            <div className="diet-panel__header">
+              <div>
+                <span className="eyebrow">Dieta montada</span>
+                <h3>Minha refeição</h3>
+              </div>
+              <div className="diet-panel__summary">
+                {formatNumber(dietaTotal.kcal)} kcal
+              </div>
+            </div>
+
+            {diet.length === 0 ? (
+              <p className="diet-empty">
+                Nenhum alimento adicionado ainda. Escolha um alimento e clique em
+                “Adicionar alimento”.
+              </p>
+            ) : (
+              <ul className="diet-list">
+                {diet.map((item) => (
+                  <li key={item.id} className="diet-item">
+                    <div>
+                      <strong>{item.nome}</strong>
+                      <span>
+                        {formatNumber(item.gramas)} g · {formatNumber(item.kcal)} kcal
+                      </span>
+                    </div>
+                    <button type="button" onClick={() => removeFromDiet(item.id)}>
+                      Remover
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <div className="diet-panel__meta">
+              <span>Objetivo: {GOAL_OPTIONS[dietGoal].label}</span>
+              <span>Paciente: {patientName.trim() || "Paciente"}</span>
+              <span>Proteína: {formatNumber(dietaTotal.proteinas)} g</span>
+              <span>Carboidratos: {formatNumber(dietaTotal.carboidratos)} g</span>
+              <span>Gorduras: {formatNumber(dietaTotal.gorduras)} g</span>
+            </div>
+
+            <div className="diet-report-fields">
+              <div className="field">
+                <label htmlFor="patient-name">Nome do paciente</label>
+                <input
+                  id="patient-name"
+                  className="input"
+                  type="text"
+                  value={patientName}
+                  onChange={(e) => setPatientName(e.target.value)}
+                  placeholder="Ex.: Maria Souza"
+                />
+              </div>
+
+              <div className="field">
+                <label htmlFor="report-date">Data do relatório</label>
+                <input
+                  id="report-date"
+                  className="input"
+                  type="date"
+                  value={reportDate}
+                  onChange={(e) => setReportDate(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="diet-export-actions">
+              <button type="button" className="btn btn-primary" onClick={() => exportDiet("pdf")}>
+                A dieta está pronta? Exportar PDF
+              </button>
+              <button type="button" className="btn btn-ghost" onClick={() => exportDiet("doc")}>
+                Exportar Word
+              </button>
+            </div>
+          </div>
         </div>
 
         <p className="calc__footnote" data-reveal>
@@ -604,11 +1103,11 @@ function Index() {
               <Leaf size={15} strokeWidth={2.5} />
             </span>
             <span className="logo__name">
-              Nutri<em>Tech</em>
+              NUTRI<em>KAL</em>
             </span>
           </a>
           <span>
-            © 2026 NutriTech · Dados de referência: Tabela TACO (UNICAMP)
+            © 2026 NUTRIKAL · Dados de referência: Tabela TACO (UNICAMP)
           </span>
         </div>
       </footer>
