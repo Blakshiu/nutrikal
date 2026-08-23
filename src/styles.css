@@ -4,19 +4,11 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/*
- * Design system definition.
- *
- * The @theme inline block maps CSS custom properties to Tailwind utility
- * classes (e.g. --color-primary -> bg-primary, text-primary).
- *
- * The :root and .dark blocks define the actual color values using oklch.
- * All colors MUST use oklch format.
- *
- * To add a new semantic color:
- * 1. Add the variable to :root (light value) and .dark (dark value)
- * 2. Register it in @theme inline as --color-<name>: var(--<name>)
- */
+/* ============================================================
+   NutriTech — Design System
+   Dark mode por padrão, minimalista, glassmorphism sutil.
+   Fontes: Inter (carregada via <link> no __root.tsx).
+   ============================================================ */
 
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
@@ -46,99 +38,912 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-ring-offset-background: var(--background);
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
 }
 
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.129 0.042 264.695);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.129 0.042 264.695);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.129 0.042 264.695);
-  --primary: oklch(0.208 0.042 265.755);
-  --primary-foreground: oklch(0.984 0.003 247.858);
-  --secondary: oklch(0.968 0.007 247.896);
-  --secondary-foreground: oklch(0.208 0.042 265.755);
-  --muted: oklch(0.968 0.007 247.896);
-  --muted-foreground: oklch(0.554 0.046 257.417);
-  --accent: oklch(0.968 0.007 247.896);
-  --accent-foreground: oklch(0.208 0.042 265.755);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.984 0.003 247.858);
-  --border: oklch(0.929 0.013 255.508);
-  --input: oklch(0.929 0.013 255.508);
-  --ring: oklch(0.704 0.04 256.788);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.984 0.003 247.858);
-  --sidebar-foreground: oklch(0.129 0.042 264.695);
-  --sidebar-primary: oklch(0.208 0.042 265.755);
-  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-accent: oklch(0.968 0.007 247.896);
-  --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
-  --sidebar-border: oklch(0.929 0.013 255.508);
-  --sidebar-ring: oklch(0.704 0.04 256.788);
+  --radius: 0.75rem;
+
+  /* Base — dark profundo com leve viés azulado */
+  --background: oklch(0.14 0.018 264);
+  --foreground: oklch(0.96 0.008 250);
+  --card: oklch(0.18 0.02 264);
+  --card-foreground: oklch(0.96 0.008 250);
+  --popover: oklch(0.2 0.022 264);
+  --popover-foreground: oklch(0.96 0.008 250);
+  --primary: oklch(0.8 0.14 220);
+  --primary-foreground: oklch(0.16 0.03 264);
+  --secondary: oklch(0.24 0.025 264);
+  --secondary-foreground: oklch(0.96 0.008 250);
+  --muted: oklch(0.22 0.022 264);
+  --muted-foreground: oklch(0.68 0.03 256);
+  --accent: oklch(0.24 0.025 264);
+  --accent-foreground: oklch(0.96 0.008 250);
+  --destructive: oklch(0.65 0.2 25);
+  --destructive-foreground: oklch(0.98 0.005 250);
+  --border: oklch(1 0 0 / 9%);
+  --input: oklch(1 0 0 / 12%);
+  --ring: oklch(0.78 0.13 220);
+
+  /* Glassmorphism */
+  --glass-bg: oklch(1 0 0 / 4%);
+  --glass-bg-strong: oklch(0.2 0.025 264 / 72%);
+  --glass-border: oklch(1 0 0 / 9%);
+  --glass-border-hover: oklch(1 0 0 / 18%);
+
+  /* Acentos dos macronutrientes (neon contido) */
+  --macro-kcal: oklch(0.75 0.17 305); /* violeta */
+  --macro-proteina: oklch(0.8 0.14 220); /* azul neon */
+  --macro-carbo: oklch(0.83 0.18 155); /* verde */
+  --macro-gordura: oklch(0.78 0.15 60); /* laranja */
 }
 
-.dark {
-  --background: oklch(0.129 0.042 264.695);
-  --foreground: oklch(0.984 0.003 247.858);
-  --card: oklch(0.208 0.042 265.755);
-  --card-foreground: oklch(0.984 0.003 247.858);
-  --popover: oklch(0.208 0.042 265.755);
-  --popover-foreground: oklch(0.984 0.003 247.858);
-  --primary: oklch(0.929 0.013 255.508);
-  --primary-foreground: oklch(0.208 0.042 265.755);
-  --secondary: oklch(0.279 0.041 260.031);
-  --secondary-foreground: oklch(0.984 0.003 247.858);
-  --muted: oklch(0.279 0.041 260.031);
-  --muted-foreground: oklch(0.704 0.04 256.788);
-  --accent: oklch(0.279 0.041 260.031);
-  --accent-foreground: oklch(0.984 0.003 247.858);
-  --destructive: oklch(0.704 0.191 22.216);
-  --destructive-foreground: oklch(0.984 0.003 247.858);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.551 0.027 264.364);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.208 0.042 265.755);
-  --sidebar-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-accent: oklch(0.279 0.041 260.031);
-  --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.551 0.027 264.364);
-}
+/* ---------- Base ---------- */
 
 @layer base {
   * {
     border-color: var(--color-border);
   }
 
+  html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 96px; /* compensa o header fixo nos anchors */
+  }
+
   body {
-    background-color: var(--color-background);
-    color: var(--color-foreground);
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family:
+      "Inter",
+      ui-sans-serif,
+      system-ui,
+      -apple-system,
+      "Segoe UI",
+      Roboto,
+      sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: oklch(0.8 0.14 220 / 35%);
+  }
+}
+
+/* ---------- Layout utilitário ---------- */
+
+.container-x {
+  width: min(1120px, 100% - 2.5rem);
+  margin-inline: auto;
+}
+
+.section {
+  padding-block: clamp(4.5rem, 9vw, 7.5rem);
+}
+
+/* ---------- Glassmorphism ---------- */
+
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px) saturate(150%);
+  border: 1px solid var(--glass-border);
+}
+
+/* ---------- Header ---------- */
+
+.site-header {
+  position: fixed;
+  inset-inline: 0;
+  top: 0;
+  z-index: 50;
+  background: oklch(0.14 0.018 264 / 55%);
+  backdrop-filter: blur(18px) saturate(140%);
+  border-bottom: 1px solid transparent;
+  transition:
+    border-color 0.3s ease,
+    background 0.3s ease;
+}
+
+.site-header.is-scrolled {
+  background: oklch(0.14 0.018 264 / 78%);
+  border-bottom-color: var(--glass-border);
+}
+
+.site-header__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 68px;
+}
+
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-weight: 800;
+  font-size: 1.15rem;
+  letter-spacing: -0.02em;
+  color: var(--foreground);
+  text-decoration: none;
+}
+
+.logo__mark {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.6rem;
+  background: linear-gradient(
+    135deg,
+    var(--macro-proteina),
+    oklch(0.75 0.17 305)
+  );
+  color: oklch(0.14 0.02 264);
+}
+
+.logo__name em {
+  font-style: normal;
+  background: linear-gradient(
+    90deg,
+    var(--macro-proteina),
+    oklch(0.75 0.17 305)
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.main-nav {
+  display: flex;
+  align-items: center;
+  gap: 1.75rem;
+}
+
+.nav-link {
+  position: relative;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--muted-foreground);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.nav-link::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -6px;
+  width: 100%;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--macro-proteina);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.25s ease;
+}
+
+.nav-link:hover {
+  color: var(--foreground);
+}
+
+.nav-link:hover::after {
+  transform: scaleX(1);
+}
+
+.menu-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.6rem;
+  background: transparent;
+  border: 1px solid var(--glass-border);
+  color: var(--foreground);
+  cursor: pointer;
+}
+
+.mobile-nav {
+  display: none;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.75rem 1.25rem 1.25rem;
+  border-top: 1px solid var(--glass-border);
+}
+
+.mobile-nav .nav-link {
+  padding: 0.65rem 0.25rem;
+  font-size: 0.95rem;
+}
+
+/* ---------- Botões ---------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.85rem 1.6rem;
+  border-radius: 999px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.btn-primary {
+  background: linear-gradient(
+    135deg,
+    var(--macro-proteina),
+    oklch(0.72 0.16 250)
+  );
+  color: oklch(0.14 0.02 264);
+  box-shadow: 0 8px 30px -8px oklch(0.8 0.14 220 / 55%);
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 40px -8px oklch(0.8 0.14 220 / 65%);
+}
+
+.btn-ghost {
+  background: var(--glass-bg);
+  border-color: var(--glass-border);
+  color: var(--foreground);
+  backdrop-filter: blur(12px);
+}
+
+.btn-ghost:hover {
+  border-color: var(--glass-border-hover);
+  background: oklch(1 0 0 / 7%);
+}
+
+/* ---------- Hero ---------- */
+
+.hero {
+  position: relative;
+  padding-top: 68px; /* altura do header fixo */
+  overflow: hidden;
+}
+
+.hero::before {
+  /* brilho ambiente atrás do conteúdo */
+  content: "";
+  position: absolute;
+  top: -20%;
+  left: -10%;
+  width: 55vw;
+  height: 55vw;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    oklch(0.8 0.14 220 / 12%),
+    transparent 65%
+  );
+  pointer-events: none;
+}
+
+.hero__grid {
+  display: grid;
+  grid-template-columns: 1.05fr 0.95fr;
+  gap: clamp(2rem, 5vw, 4.5rem);
+  align-items: center;
+  padding-block: clamp(4rem, 8vw, 6.5rem);
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--macro-proteina);
+  background: oklch(0.8 0.14 220 / 10%);
+  border: 1px solid oklch(0.8 0.14 220 / 25%);
+}
+
+.hero__title {
+  margin-top: 1.25rem;
+  font-size: clamp(2.4rem, 5.2vw, 3.9rem);
+  font-weight: 800;
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+}
+
+.hero__title .grad {
+  background: linear-gradient(
+    90deg,
+    var(--macro-proteina),
+    oklch(0.75 0.17 305)
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.hero__lead {
+  margin-top: 1.25rem;
+  max-width: 34rem;
+  font-size: clamp(1rem, 1.4vw, 1.125rem);
+  line-height: 1.7;
+  color: var(--muted-foreground);
+}
+
+.hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+  margin-top: 2rem;
+}
+
+.hero__stats {
+  display: flex;
+  gap: 2.25rem;
+  margin-top: 2.75rem;
+}
+
+.hero__stat strong {
+  display: block;
+  font-size: 1.45rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.hero__stat span {
+  font-size: 0.8rem;
+  color: var(--muted-foreground);
+}
+
+.hero__media {
+  position: relative;
+}
+
+.hero__media img {
+  display: block;
+  width: 100%;
+  border-radius: var(--radius-3xl);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 30px 80px -30px oklch(0 0 0 / 80%);
+}
+
+.hero__chip {
+  position: absolute;
+  bottom: 1.25rem;
+  left: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.8rem 1.1rem;
+  border-radius: var(--radius-xl);
+  background: oklch(0.17 0.02 264 / 72%);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+}
+
+.hero__chip-icon {
+  display: grid;
+  place-items: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 0.6rem;
+  background: oklch(0.83 0.18 155 / 15%);
+  color: var(--macro-carbo);
+}
+
+.hero__chip strong {
+  display: block;
+  font-size: 0.9rem;
+}
+
+.hero__chip span {
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+/* ---------- Cabeçalho de seção ---------- */
+
+.section-head {
+  max-width: 40rem;
+  margin-bottom: clamp(2rem, 4vw, 3rem);
+}
+
+.section-head h2 {
+  font-size: clamp(1.7rem, 3.4vw, 2.4rem);
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+}
+
+.section-head p {
+  margin-top: 0.75rem;
+  color: var(--muted-foreground);
+  line-height: 1.7;
+}
+
+/* ---------- Cards de macros (seção info) ---------- */
+
+.macro-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem;
+}
+
+.macro-card {
+  position: relative;
+  padding: 1.75rem;
+  border-radius: var(--radius-2xl);
+  overflow: hidden;
+  transition:
+    transform 0.25s ease,
+    border-color 0.25s ease;
+}
+
+.macro-card::before {
+  /* glow superior por macronutriente */
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  background: var(--macro-accent);
+  opacity: 0.9;
+}
+
+.macro-card:hover {
+  transform: translateY(-6px);
+  border-color: var(--glass-border-hover);
+}
+
+.macro-card--proteina {
+  --macro-accent: var(--macro-proteina);
+}
+.macro-card--carbo {
+  --macro-accent: var(--macro-carbo);
+}
+.macro-card--gordura {
+  --macro-accent: var(--macro-gordura);
+}
+
+.macro-card__icon {
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 0.9rem;
+  color: var(--macro-accent);
+  background: color-mix(in oklch, var(--macro-accent) 14%, transparent);
+  border: 1px solid color-mix(in oklch, var(--macro-accent) 30%, transparent);
+}
+
+.macro-card h3 {
+  margin-top: 1.15rem;
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.macro-card p {
+  margin-top: 0.6rem;
+  font-size: 0.925rem;
+  line-height: 1.7;
+  color: var(--muted-foreground);
+}
+
+.macro-card__tag {
+  display: inline-block;
+  margin-top: 1.1rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--macro-accent);
+}
+
+/* ---------- Calculadora (dashboard) ---------- */
+
+.calc {
+  position: relative;
+}
+
+.calc::before {
+  content: "";
+  position: absolute;
+  top: 10%;
+  right: -15%;
+  width: 45vw;
+  height: 45vw;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    oklch(0.75 0.17 305 / 8%),
+    transparent 65%
+  );
+  pointer-events: none;
+}
+
+.calc__panel {
+  display: grid;
+  grid-template-columns: 0.9fr 1.1fr;
+  gap: 1.5rem;
+  padding: clamp(1.25rem, 3vw, 2rem);
+  border-radius: var(--radius-3xl);
+}
+
+.calc__form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.35rem;
+  padding: clamp(0.5rem, 1.5vw, 1rem);
+}
+
+.field label {
+  display: block;
+  margin-bottom: 0.55rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.input {
+  width: 100%;
+  padding: 0.9rem 1.05rem;
+  border-radius: var(--radius-lg);
+  background: oklch(1 0 0 / 5%);
+  border: 1px solid var(--glass-border);
+  color: var(--foreground);
+  font-size: 1rem;
+  font-family: inherit;
+  outline: none;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease;
+}
+
+.input::placeholder {
+  color: oklch(0.55 0.03 256);
+}
+
+.input:focus {
+  border-color: oklch(0.8 0.14 220 / 55%);
+  box-shadow: 0 0 0 3px oklch(0.8 0.14 220 / 18%);
+  background: oklch(1 0 0 / 7%);
+}
+
+/* remove as setas nativas do input numérico */
+.input[type="number"]::-webkit-outer-spin-button,
+.input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+/* Combobox de alimentos */
+.combo {
+  position: relative;
+}
+
+.combo .input {
+  padding-left: 2.75rem;
+}
+
+.combo__icon {
+  position: absolute;
+  left: 0.95rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted-foreground);
+  pointer-events: none;
+}
+
+.combo__list {
+  position: absolute;
+  z-index: 20;
+  inset-inline: 0;
+  top: calc(100% + 0.5rem);
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 0.4rem;
+  border-radius: var(--radius-xl);
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(24px) saturate(150%);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 24px 60px -20px oklch(0 0 0 / 75%);
+}
+
+.combo__group {
+  padding: 0.5rem 0.7rem 0.35rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.combo__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.65rem 0.7rem;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--foreground);
+  font-size: 0.925rem;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.combo__item:hover,
+.combo__item.is-active {
+  background: oklch(1 0 0 / 7%);
+}
+
+.combo__item small {
+  color: var(--muted-foreground);
+}
+
+.combo__empty {
+  padding: 0.9rem 0.7rem;
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
+}
+
+.field-hint {
+  margin-top: 0.5rem;
+  font-size: 0.78rem;
+  color: var(--muted-foreground);
+}
+
+/* Resultados */
+.calc__results {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  align-content: start;
+}
+
+.result-card {
+  --accent: var(--foreground);
+  position: relative;
+  padding: 1.4rem 1.5rem;
+  border-radius: var(--radius-2xl);
+  overflow: hidden;
+}
+
+.result-card::before {
+  content: "";
+  position: absolute;
+  top: -40%;
+  right: -30%;
+  width: 70%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    color-mix(in oklch, var(--accent) 22%, transparent),
+    transparent 70%
+  );
+  pointer-events: none;
+}
+
+.result-card--kcal {
+  --accent: var(--macro-kcal);
+}
+.result-card--proteina {
+  --accent: var(--macro-proteina);
+}
+.result-card--carbo {
+  --accent: var(--macro-carbo);
+}
+.result-card--gordura {
+  --accent: var(--macro-gordura);
+}
+
+.result-card__label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.result-card__label svg {
+  color: var(--accent);
+}
+
+.result-card__value {
+  margin-top: 0.6rem;
+  font-size: clamp(1.9rem, 3.2vw, 2.6rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.result-card__unit {
+  margin-left: 0.3rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--muted-foreground);
+}
+
+/* Barra de distribuição de macros */
+.macro-split {
+  grid-column: 1 / -1;
+  padding: 1.25rem 1.5rem;
+  border-radius: var(--radius-2xl);
+}
+
+.macro-split__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.85rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.macro-split__track {
+  display: flex;
+  height: 0.65rem;
+  border-radius: 999px;
+  overflow: hidden;
+  background: oklch(1 0 0 / 6%);
+}
+
+.macro-split__seg {
+  height: 100%;
+  transition: width 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.macro-split__seg--proteina {
+  background: var(--macro-proteina);
+}
+.macro-split__seg--carbo {
+  background: var(--macro-carbo);
+}
+.macro-split__seg--gordura {
+  background: var(--macro-gordura);
+}
+
+.macro-split__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  margin-top: 0.85rem;
+  font-size: 0.8rem;
+  color: var(--muted-foreground);
+}
+
+.macro-split__legend i {
+  display: inline-block;
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  margin-right: 0.4rem;
+}
+
+.legend-dot--proteina {
+  background: var(--macro-proteina);
+}
+.legend-dot--carbo {
+  background: var(--macro-carbo);
+}
+.legend-dot--gordura {
+  background: var(--macro-gordura);
+}
+
+.calc__footnote {
+  margin-top: 1.1rem;
+  font-size: 0.78rem;
+  color: var(--muted-foreground);
+}
+
+/* ---------- Footer ---------- */
+
+.site-footer {
+  border-top: 1px solid var(--glass-border);
+  padding-block: 2.25rem;
+}
+
+.site-footer__inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.85rem;
+  color: var(--muted-foreground);
+}
+
+/* ---------- Reveal on scroll ---------- */
+
+[data-reveal] {
+  opacity: 0;
+  transform: translateY(24px);
+  transition:
+    opacity 0.7s ease,
+    transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+[data-reveal].is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  [data-reveal] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
+/* ---------- Responsivo ---------- */
+
+@media (max-width: 900px) {
+  .hero__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hero__media {
+    order: -1;
+  }
+
+  .calc__panel {
+    grid-template-columns: 1fr;
+  }
+
+  .macro-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .main-nav {
+    display: none;
+  }
+
+  .menu-toggle {
+    display: inline-flex;
+  }
+
+  .mobile-nav.is-open {
+    display: flex;
+  }
+
+  .hero__stats {
+    gap: 1.5rem;
+  }
+
+  .calc__results {
+    grid-template-columns: 1fr;
   }
 }
