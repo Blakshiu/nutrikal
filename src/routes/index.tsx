@@ -351,7 +351,9 @@ function ResultCard({
 
 function Calculadora() {
   const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState<TacoFood | null>(TACO_FOODS[0]);
+  const [selected, setSelected] = useState<TacoFood | null>(
+    TACO_FOODS[0] ?? null,
+  );
   const [gramas, setGramas] = useState("100");
   const [comboOpen, setComboOpen] = useState(false);
 
