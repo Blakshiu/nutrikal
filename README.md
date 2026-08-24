@@ -36,16 +36,6 @@ O JavaScript deve ser limpo, utilizando ES6+ (Arrow functions, destructuring, et
 
 Adicione comentários explicando a lógica de cálculo proporcional (regra de três baseada em 100g do alimento da tabela TACO).
 
-This project was built with [Lovable](https://lovable.dev).
-
-## Build with Lovable
-
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/d6fcf981-10b6-4503-932d-9bcf3ce06959).
-
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
-
 ## Development
 
 Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
