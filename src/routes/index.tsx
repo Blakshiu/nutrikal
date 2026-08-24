@@ -81,6 +81,26 @@ const normalize = (s: string): string =>
     .replace(/[̀-ͯ]/g, "")
     .toLowerCase();
 
+const getApproxUnitGrams = (food: TacoFood): number => {
+  const name = normalize(food.nome);
+  const approximations: Array<[string[], number]> = [
+    [["ovo"], 50],
+    [["banana"], 90],
+    [["maca"], 130],
+    [["pera"], 140],
+    [["laranja"], 150],
+    [["tangerina", "mexerica"], 100],
+    [["limao"], 60],
+    [["tomate"], 100],
+    [["cebola"], 100],
+    [["cenoura"], 80],
+    [["batata"], 150],
+    [["pao"], 50],
+  ];
+
+  return approximations.find(([terms]) => terms.some((term) => name.includes(term)))?.[1] ?? 100;
+};
+
 /* ------------------------------------------------------------------ */
 /* Header fixo com navegação suave                                     */
 /* ------------------------------------------------------------------ */
@@ -295,9 +315,19 @@ interface MacroTotals {
 }
 
 type DietGoal = "emagrecimento" | "manutencao" | "ganho";
+type PortionUnit = "g" | "u";
+
+interface MealSection {
+  id: string;
+  name: string;
+}
 
 interface DietItem {
   id: string;
+  sectionId: string;
+  sectionName: string;
+  quantidade: number;
+  unidade: PortionUnit;
   nome: string;
   categoria: string;
   gramas: number;
@@ -388,11 +418,15 @@ function Calculadora() {
   const [selected, setSelected] = useState<TacoFood | null>(
     TACO_FOODS[0] ?? null,
   );
-  const [gramas, setGramas] = useState("100");
+  const [quantidade, setQuantidade] = useState("100");
+  const [unidade, setUnidade] = useState<PortionUnit>("g");
   const [comboOpen, setComboOpen] = useState(false);
   const [categoria, setCategoria] = useState("Todos");
   const [diet, setDiet] = useState<DietItem[]>([]);
   const [dietGoal, setDietGoal] = useState<DietGoal>("manutencao");
+  const [mealSections, setMealSections] = useState<MealSection[]>([]);
+  const [selectedSectionId, setSelectedSectionId] = useState("");
+  const [newSectionName, setNewSectionName] = useState("");
   const [patientName, setPatientName] = useState("Paciente");
   const [reportDate, setReportDate] = useState(() =>
     new Date().toISOString().slice(0, 10),
@@ -441,14 +475,23 @@ function Calculadora() {
   );
 
   const addFoodToDiet = () => {
-    if (!selected) return;
+    if (!selected || !selectedSectionId) return;
 
-    const grams = parseFloat(gramas.replace(",", ".")) || 0;
-    if (grams <= 0) return;
+    const section = mealSections.find((item) => item.id === selectedSectionId);
+    if (!section) return;
+
+    const quantity = parseFloat(quantidade.replace(",", ".")) || 0;
+    if (quantity <= 0) return;
+
+    const grams = unidade === "g" ? quantity : quantity * getApproxUnitGrams(selected);
 
     const factor = grams / 100;
     const item: DietItem = {
       id: selected.id,
+      sectionId: section.id,
+      sectionName: section.name,
+      quantidade: quantity,
+      unidade,
       nome: selected.nome,
       categoria: selected.categoria,
       gramas: grams,
@@ -459,13 +502,16 @@ function Calculadora() {
     };
 
     setDiet((prev) => {
-      const existing = prev.find((entry) => entry.id === selected.id);
+      const existing = prev.find(
+        (entry) => entry.id === selected.id && entry.sectionId === section.id,
+      );
       if (!existing) return [...prev, item];
 
       return prev.map((entry) =>
-        entry.id === selected.id
+        entry.id === selected.id && entry.sectionId === section.id
           ? {
               ...entry,
+              quantidade: entry.quantidade + quantity,
               gramas: entry.gramas + grams,
               kcal: entry.kcal + item.kcal,
               carboidratos: entry.carboidratos + item.carboidratos,
@@ -477,8 +523,23 @@ function Calculadora() {
     });
   };
 
-  const removeFromDiet = (id: string) => {
-    setDiet((prev) => prev.filter((item) => item.id !== id));
+  const removeFromDiet = (id: string, sectionId: string) => {
+    setDiet((prev) =>
+      prev.filter((item) => item.id !== id || item.sectionId !== sectionId),
+    );
+  };
+
+  const addMealSection = () => {
+    const name = newSectionName.trim();
+    if (!name) return;
+
+    const section: MealSection = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      name,
+    };
+    setMealSections((prev) => [...prev, section]);
+    setSelectedSectionId(section.id);
+    setNewSectionName("");
   };
 
   const exportDiet = (format: "pdf" | "doc") => {
@@ -505,18 +566,29 @@ function Calculadora() {
 
     if (!confirmed) return;
 
-    const rows = diet
-      .map(
-        (item) => `
+    const rows = mealSections
+      .map((section) => {
+        const sectionItems = diet.filter((item) => item.sectionId === section.id);
+        if (sectionItems.length === 0) return "";
+
+        return `
+          <tr class="section-row">
+            <td colspan="6">${section.name}</td>
+          </tr>
+          ${sectionItems
+            .map(
+              (item) => `
           <tr>
             <td>${item.nome}</td>
-            <td>${formatNumber(item.gramas)} g</td>
+            <td>${formatNumber(item.quantidade)} ${item.unidade} <small>(${formatNumber(item.gramas)} g)</small></td>
             <td>${formatNumber(item.kcal)} kcal</td>
             <td>${formatNumber(item.proteinas)} g</td>
             <td>${formatNumber(item.carboidratos)} g</td>
             <td>${formatNumber(item.gorduras)} g</td>
           </tr>`,
-      )
+            )
+            .join("")}`;
+          })
       .join("");
 
     const html = `
@@ -656,6 +728,17 @@ function Calculadora() {
               color: var(--brown);
               font-weight: 700;
             }
+            .section-row td {
+              padding: 13px 10px 8px;
+              border: none;
+              border-bottom: 2px solid var(--pink);
+              background: #fff;
+              color: var(--pink-strong);
+              font-size: 12px;
+              font-weight: 700;
+              letter-spacing: 0.1em;
+              text-transform: uppercase;
+            }
             tbody tr:nth-child(even) { background: #fffaf9; }
             .footer-note {
               margin-top: 18px;
@@ -719,6 +802,7 @@ function Calculadora() {
 
               <div class="footer-note">
                 Documento gerado pela calculadora NUTRIKAL com base na Tabela TACO.
+                Quantidades em unidades usam peso médio aproximado por alimento e devem ser conferidas quando necessário.
               </div>
             </div>
           </div>
@@ -748,7 +832,11 @@ function Calculadora() {
   };
 
   /* Recalcula em tempo real a cada input de alimento ou gramagem. */
-  const gramasNum = parseFloat(gramas.replace(",", ".")) || 0;
+  const quantidadeNum = parseFloat(quantidade.replace(",", ".")) || 0;
+  const gramasNum =
+    unidade === "g"
+      ? quantidadeNum
+      : quantidadeNum * (selected ? getApproxUnitGrams(selected) : 100);
   const totals = useMemo(
     () => calcularMacros(selected, gramasNum),
     [selected, gramasNum],
@@ -885,25 +973,90 @@ function Calculadora() {
             </div>
 
             <div className="field">
-              <label htmlFor="grams">Quantidade (g)</label>
-              <input
-                id="grams"
-                className="input"
-                type="number"
-                min="0"
-                step="1"
-                inputMode="decimal"
-                placeholder="Ex.: 150"
-                value={gramas}
-                onChange={(e) => setGramas(e.target.value)}
-              />
+              <label htmlFor="quantity">Quantidade</label>
+              <div className="portion-input">
+                <input
+                  id="quantity"
+                  className="input"
+                  type="number"
+                  min="0"
+                  step="1"
+                  inputMode="decimal"
+                  placeholder={unidade === "g" ? "Ex.: 150" : "Ex.: 2"}
+                  value={quantidade}
+                  onChange={(e) => setQuantidade(e.target.value)}
+                />
+                <select
+                  id="portion-unit"
+                  className="input portion-unit"
+                  aria-label="Unidade da quantidade"
+                  value={unidade}
+                  onChange={(e) => setUnidade(e.target.value as PortionUnit)}
+                >
+                  <option value="g">gramas (g)</option>
+                  <option value="u">unidades (u)</option>
+                </select>
+              </div>
               <p className="field-hint">
-                O cálculo aplica regra de três sobre a base oficial de 100 g.
+                {unidade === "g"
+                  ? "O cálculo aplica regra de três sobre a base oficial de 100 g."
+                  : `Estimativa: 1 unidade de ${selected?.nome ?? "alimento"} ≈ ${selected ? getApproxUnitGrams(selected) : 100} g.`}
               </p>
             </div>
 
+            <div className="field">
+              <label htmlFor="meal-section">Seção da refeição</label>
+              {mealSections.length > 0 ? (
+                <select
+                  id="meal-section"
+                  className="input"
+                  value={selectedSectionId}
+                  onChange={(e) => setSelectedSectionId(e.target.value)}
+                >
+                  <option value="">Escolha uma seção</option>
+                  {mealSections.map((section) => (
+                    <option key={section.id} value={section.id}>
+                      {section.name}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <p className="field-hint field-hint--alert">
+                  Crie uma seção abaixo antes de adicionar alimentos.
+                </p>
+              )}
+              <p className="field-hint">
+                O alimento será incluído na seção escolhida da sua dieta.
+              </p>
+            </div>
+
+            <div className="field">
+              <label htmlFor="new-meal-section">Criar nova seção</label>
+              <div className="section-create">
+                <input
+                  id="new-meal-section"
+                  className="input"
+                  type="text"
+                  value={newSectionName}
+                  onChange={(e) => setNewSectionName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") addMealSection();
+                  }}
+                  placeholder="Ex.: Pré-treino"
+                />
+                <button type="button" className="btn btn-ghost" onClick={addMealSection}>
+                  Adicionar seção
+                </button>
+              </div>
+            </div>
+
             <div className="diet-actions">
-              <button type="button" className="btn btn-primary" onClick={addFoodToDiet}>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={addFoodToDiet}
+                disabled={!selected || !selectedSectionId}
+              >
                 Adicionar alimento
               </button>
             </div>
@@ -945,7 +1098,9 @@ function Calculadora() {
               <div className="macro-split__header">
                 <span>Distribuição calórica</span>
                 <span>
-                  {selected ? `${selected.nome} · ${gramasNum || 0} g` : "—"}
+                  {selected
+                    ? `${selected.nome} · ${quantidadeNum || 0} ${unidade}`
+                    : "—"}
                 </span>
               </div>
               <div className="macro-split__track">
@@ -996,21 +1151,36 @@ function Calculadora() {
                 “Adicionar alimento”.
               </p>
             ) : (
-              <ul className="diet-list">
-                {diet.map((item) => (
-                  <li key={item.id} className="diet-item">
-                    <div>
-                      <strong>{item.nome}</strong>
-                      <span>
-                        {formatNumber(item.gramas)} g · {formatNumber(item.kcal)} kcal
-                      </span>
-                    </div>
-                    <button type="button" onClick={() => removeFromDiet(item.id)}>
-                      Remover
-                    </button>
-                  </li>
-                ))}
-              </ul>
+              <div className="diet-sections">
+                {mealSections.map((section) => {
+                  const sectionItems = diet.filter((item) => item.sectionId === section.id);
+                  if (sectionItems.length === 0) return null;
+
+                  return (
+                    <section key={section.id} className="diet-section">
+                      <h4>{section.name}</h4>
+                      <ul className="diet-list">
+                        {sectionItems.map((item) => (
+                          <li key={`${item.sectionId}-${item.id}`} className="diet-item">
+                            <div>
+                              <strong>{item.nome}</strong>
+                              <span>
+                                {formatNumber(item.quantidade)} {item.unidade} · {formatNumber(item.kcal)} kcal
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => removeFromDiet(item.id, item.sectionId)}
+                            >
+                              Remover
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                  );
+                })}
+              </div>
             )}
 
             <div className="diet-panel__meta">
