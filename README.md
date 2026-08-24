@@ -1,42 +1,30 @@
-# Nutri Glow
+# NutriKal 🥗
 
-Atue como um desenvolvedor Front-end Sênior e UI/UX Designer.
+Uma Single Page Application (SPA) moderna e responsiva focada em nutrição, cálculo de macronutrientes e otimização de performance. O projeto utiliza um design minimalista com Dark Mode padrão e efeitos de *glassmorphism*, oferecendo uma experiência de usuário fluida e visualmente atraente.
 
-Quero que você crie o código completo (HTML, CSS e JavaScript) para uma Single Page Application (SPA) muito moderna sobre nutrição. O design deve ser minimalista, utilizar Dark Mode por padrão, fontes sem serifa (como Inter ou Roboto), e efeitos sutis de glassmorphism (fundo translúcido com desfoque) nos cards.
+## 🚀 Funcionalidades
 
-A página deve ter as seguintes seções:
+- **Hero Section:** Introdução impactante com navegação suave, logotipo NutriTech e um Call-to-Action direto.
+- **Guia de Macronutrientes:** Cards informativos explicando o papel fundamental das Proteínas (construção muscular), Carboidratos (energia) e Gorduras (função hormonal).
+- **Calculadora Nutricional em Tempo Real:**
+  - Baseada em dados estruturados simulando a **Tabela TACO**.
+  - Cálculo instantâneo via regra de três a partir de uma base padronizada de 100g.
+  - Dashboard interativo que suporta alimentos comuns (Peito de Frango, Batata Doce, Arroz Branco) e suplementos (Whey Protein, Creatina).
+  - Resultados visuais com cores de destaque para cada macronutriente (Proteína em azul, Carbo em verde, Gordura em laranja).
 
-1. Header & Hero Section:
+## 🛠️ Tecnologias Utilizadas
 
-Um cabeçalho fixo com o logotipo "NutriTech" e navegação suave.
+- **HTML5:** Estrutura semântica de Single Page Application.
+- **CSS3 (Puro):** Estilização moderna sem frameworks, utilizando CSS Grid, Flexbox e propriedades avançadas de desfoque (backdrop-filter) para o glassmorphism.
+- **JavaScript (ES6+):** Lógica assíncrona/reativa, manipulação do DOM e processamento de dados via JSON.
 
-Uma seção Hero com um título chamativo sobre o impacto da nutrição no desempenho e na saúde. Deve incluir um breve texto inspirador e um botão Call-to-Action "Calcular Macros".
+## 🧠 Lógica e Estrutura de Dados
 
-2. Seção de Informação:
+O motor da calculadora funciona através de um conjunto de dados JSON no JavaScript. Os alimentos possuem seus valores nutricionais mapeados para porções exatas de **100g**. 
 
-Três cards modernos lado a lado explicando brevemente a importância dos Macronutrientes: Proteínas (construção muscular), Carboidratos (energia) e Gorduras (função hormonal).
+Quando o usuário interage com o formulário, o script utiliza *event listeners* no input para calcular os valores proporcionais à gramagem inserida e atualizar o DOM em tempo real, sem necessidade de recarregar a página.
 
-3. Calculadora de Nutrientes (Tabela TACO):
-
-O design desta seção deve ser um painel (dashboard) limpo.
-
-Input: Um campo de busca/seleção para o alimento (ex: Peito de Frango, Batata Doce, Arroz Branco, Ovos) e um campo numérico para a quantidade em gramas (g).
-
-Lógica JS: Crie um mock de dados (JSON) no JavaScript simulando alguns alimentos da Tabela TACO (inclua pelo menos 5 alimentos comuns e, se possível, adicione suplementos como Creatina e Whey Protein apenas para demonstração). O script deve escutar o evento de input, calcular os valores proporcionais à gramagem inserida e atualizar a tela em tempo real.
-
-Output: Quatro cards de resultados grandes e visuais para mostrar: Calorias (kcal), Carboidratos (g), Proteínas (g) e Gorduras (g). Use cores de destaque diferentes para cada macro (ex: Proteína em azul neon, Carbo em verde, Gordura em laranja).
-
-Requisitos técnicos:
-
-O layout deve ser totalmente responsivo (Flexbox/Grid).
-
-Escreva o CSS puro (sem frameworks, mas organizado como se fosse Tailwind) no mesmo arquivo, ou separado claramente.
-
-O JavaScript deve ser limpo, utilizando ES6+ (Arrow functions, destructuring, etc.).
-
-Adicione comentários explicando a lógica de cálculo proporcional (regra de três baseada em 100g do alimento da tabela TACO).
-
-## Development
+## 💻 Development
 
 Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
 
@@ -45,4 +33,3 @@ git clone <this-repository-url>
 cd <repository-name>
 npm i
 npm run dev
-```
