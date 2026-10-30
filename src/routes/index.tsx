@@ -15,6 +15,10 @@ import {
 
 import heroImg from "@/assets/hero-nutrition.jpg";
 import { TACO_FOODS, type TacoFood } from "@/lib/taco-data";
+import { Faq } from "@/components/Faq";
+import { GoalProgress, GoalsAndWater } from "@/components/GoalsAndWater";
+import { usePersistedState } from "@/hooks/use-persisted-state";
+import { DEFAULT_SECTIONS, escapeHtml, hasNoMacroData } from "@/lib/diet-tools";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -119,6 +123,8 @@ function Header() {
     { href: "#inicio", label: "Início" },
     { href: "#nutrientes", label: "Nutrientes" },
     { href: "#calculadora", label: "Calculadora" },
+    { href: "#metas", label: "Metas" },
+    { href: "#duvidas", label: "Dúvidas" },
   ];
 
   return (
@@ -422,15 +428,24 @@ function Calculadora() {
   const [unidade, setUnidade] = useState<PortionUnit>("g");
   const [comboOpen, setComboOpen] = useState(false);
   const [categoria, setCategoria] = useState("Todos");
-  const [diet, setDiet] = useState<DietItem[]>([]);
-  const [dietGoal, setDietGoal] = useState<DietGoal>("manutencao");
-  const [mealSections, setMealSections] = useState<MealSection[]>([]);
+  const [diet, setDiet] = usePersistedState<DietItem[]>("nutrikal:diet", []);
+  const [dietGoal, setDietGoal] = usePersistedState<DietGoal>("nutrikal:objective", "manutencao");
+  const [mealSections, setMealSections] = usePersistedState<MealSection[]>(
+    "nutrikal:sections",
+    DEFAULT_SECTIONS,
+  );
   const [selectedSectionId, setSelectedSectionId] = useState("");
   const [newSectionName, setNewSectionName] = useState("");
-  const [patientName, setPatientName] = useState("Paciente");
+  const [patientName, setPatientName] = usePersistedState("nutrikal:patient", "Paciente");
   const [reportDate, setReportDate] = useState(() =>
     new Date().toISOString().slice(0, 10),
   );
+
+  /* Mantém a seção selecionada válida (seções salvas, remoções, primeira carga). */
+  useEffect(() => {
+    if (!mealSections.some((s) => s.id === selectedSectionId))
+      setSelectedSectionId(mealSections[0]?.id ?? "");
+  }, [mealSections, selectedSectionId]);
 
   const categorias = useMemo(
     () =>
@@ -573,13 +588,13 @@ function Calculadora() {
 
         return `
           <tr class="section-row">
-            <td colspan="6">${section.name}</td>
+            <td colspan="6">${escapeHtml(section.name)}</td>
           </tr>
           ${sectionItems
             .map(
               (item) => `
           <tr>
-            <td>${item.nome}</td>
+            <td>${escapeHtml(item.nome)}</td>
             <td>${formatNumber(item.quantidade)} ${item.unidade} <small>(${formatNumber(item.gramas)} g)</small></td>
             <td>${formatNumber(item.kcal)} kcal</td>
             <td>${formatNumber(item.proteinas)} g</td>
@@ -778,7 +793,7 @@ function Calculadora() {
               </div>
 
               <div class="patient-meta">
-                <div>Paciente: <strong>${safePatientName}</strong></div>
+                <div>Paciente: <strong>${escapeHtml(safePatientName)}</strong></div>
                 <div>Data: <span>${reportDateLabel}</span></div>
               </div>
 
@@ -1002,6 +1017,11 @@ function Calculadora() {
                   ? "O cálculo aplica regra de três sobre a base oficial de 100 g."
                   : `Estimativa: 1 unidade de ${selected?.nome ?? "alimento"} ≈ ${selected ? getApproxUnitGrams(selected) : 100} g.`}
               </p>
+              {selected && hasNoMacroData(selected) && (
+                <p className="field-hint" role="alert">
+                  Atenção: este item está sem valores na base importada da TACO. Confirme na tabela oficial antes de usar.
+                </p>
+              )}
             </div>
 
             <div className="field">
@@ -1152,6 +1172,7 @@ function Calculadora() {
               </p>
             ) : (
               <div className="diet-sections">
+                <GoalProgress total={dietaTotal} />
                 {mealSections.map((section) => {
                   const sectionItems = diet.filter((item) => item.sectionId === section.id);
                   if (sectionItems.length === 0) return null;
@@ -1265,6 +1286,8 @@ function Index() {
         <Hero />
         <MacroInfo />
         <Calculadora />
+        <GoalsAndWater />
+        <Faq />
       </main>
       <footer className="site-footer">
         <div className="container-x site-footer__inner">
