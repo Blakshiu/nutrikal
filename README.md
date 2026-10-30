@@ -4,7 +4,7 @@ Uma Single Page Application (SPA) moderna e responsiva focada em nutrição, cá
 
 ## 🚀 Funcionalidades
 
-- **Hero Section:** Introdução impactante com navegação suave, logotipo NutriTech e um Call-to-Action direto.
+- **Hero Section:** Introdução impactante com navegação suave, logotipo NUTRIKAL e um Call-to-Action direto.
 - **Guia de Macronutrientes:** Cards informativos explicando o papel fundamental das Proteínas (construção muscular), Carboidratos (energia) e Gorduras (função hormonal).
 - **Calculadora Nutricional em Tempo Real:**
   - Baseada em dados estruturados simulando a **Tabela TACO**.

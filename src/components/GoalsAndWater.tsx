@@ -91,8 +91,8 @@ export function GoalsAndWater() {
 
   return (
     <section id="metas" className="section">
-      <div className="container-x grid gap-6 md:grid-cols-2">
-        <div className="glass p-6">
+      <div className="container-x grid items-start gap-4 md:grid-cols-2">
+        <div className="glass p-5">
           <h2 className="mb-4 flex items-center gap-2 text-xl font-semibold">
             <Target size={20} /> Meta diária
           </h2>
@@ -209,7 +209,7 @@ export function GoalsAndWater() {
           </p>
         </div>
 
-        <div className="glass p-6">
+        <div className="glass p-5">
           <h2 className="mb-1 flex items-center gap-2 text-xl font-semibold">
             <Droplets size={20} /> Água de hoje
           </h2>
@@ -227,7 +227,7 @@ export function GoalsAndWater() {
                 aria-label={`Copo ${i + 1} de ${waterTarget}`}
                 aria-pressed={i < glasses}
                 onClick={() => toggleGlass(i)}
-                className={`rounded-lg p-2 ${i < glasses ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
+                className={`water-glass ${i < glasses ? "is-on" : ""} rounded-lg p-2 ${i < glasses ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
               >
                 <Droplets size={20} />
               </button>

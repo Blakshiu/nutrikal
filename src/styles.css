@@ -1,3 +1,4 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
 @import "tailwindcss" source(none);
 @source "../src";
 @import "tw-animate-css";
@@ -5,7 +6,7 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ============================================================
-   NutriTech — Design System
+   NutriKal — Design System
    Dark mode por padrão, minimalista, glassmorphism sutil.
    Fontes: Inter (carregada via <link> no __root.tsx).
    ============================================================ */
@@ -1146,4 +1147,105 @@
   .portion-unit {
     width: 100%;
   }
+}
+
+
+/* ================= Layout compacto (cores originais preservadas) ================= */
+body { font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+.section { padding-block: clamp(1.25rem, 2.5vw, 2rem); }
+.site-header__inner { height: 56px; min-height: 56px; }
+.hero { padding-top: 56px; }
+.hero__grid { grid-template-columns: 1.4fr 0.8fr; gap: 1.5rem; padding-block: clamp(1.5rem, 3vw, 2.25rem) 0.5rem; }
+.hero__title { font-size: clamp(1.7rem, 3.6vw, 2.5rem); line-height: 1.15; letter-spacing: -0.03em; font-weight: 800; margin-top: 0.6rem; }
+.hero__lead { font-size: 1rem; line-height: 1.55; margin-top: 0.6rem; max-width: 36rem; }
+.hero__actions { margin-top: 1rem; }
+.hero__stats { display: grid; gap: 0.5rem; margin: 0; padding: 0; }
+.hero__stat { display: flex; align-items: baseline; gap: 0.6rem; padding: 0.6rem 0.85rem; background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 12px; }
+.hero__stat strong { font-size: 1.25rem; color: color-mix(in oklch, var(--macro-kcal) 55%, var(--foreground)); min-width: 3.8rem; }
+.hero__stat span { font-size: 0.85rem; color: var(--muted-foreground); }
+.section-head { margin-bottom: 0.9rem; max-width: none; }
+.section-head h2 { font-size: clamp(1.25rem, 2.4vw, 1.6rem); font-weight: 700; letter-spacing: -0.02em; }
+.section-head p { margin-top: 0.3rem; font-size: 0.95rem; line-height: 1.5; }
+.calc__panel { gap: 1rem; padding: 1rem; align-items: start; grid-template-areas: "form results" "form diet"; grid-template-rows: auto 1fr; }
+.calc__form { gap: 0.7rem; padding: 0; grid-area: form; }
+.calc__results { gap: 0.6rem; grid-area: results; }
+.result-card { padding: 0.75rem 0.9rem; border-radius: 12px; border-left: 4px solid var(--accent); }
+.result-card__value { font-size: 1.65rem; font-weight: 800; letter-spacing: -0.02em; }
+.macro-split { grid-column: 1 / -1; padding: 0.8rem 0.9rem; border-radius: 12px; }
+.diet-panel { grid-area: diet; margin-top: 0; padding: 1rem; }
+.diet-list { gap: 0.4rem; }
+.diet-sections { gap: 0.9rem; }
+.macro-grid { gap: 0.75rem; }
+.macro-card { padding: 1rem; border-radius: 12px; }
+.site-footer { padding-block: 1rem; }
+.calc__footnote { margin-top: 0.6rem; }
+.calc { overflow-x: clip; }
+label.field { display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted-foreground); }
+label.field .input { letter-spacing: normal; text-transform: none; font-weight: 400; font-size: 0.95rem; color: var(--foreground); padding: 0.55rem 0.75rem; }
+
+/* ================= Páginas novas ================= */
+.page-head h1 { font-size: clamp(1.6rem, 3.4vw, 2.2rem); font-weight: 800; letter-spacing: -0.03em; line-height: 1.15; margin-top: 0.6rem; }
+.page-head p { margin-top: 0.4rem; color: var(--muted-foreground); max-width: 40rem; line-height: 1.55; }
+.feature-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.9rem; }
+.feature-card { display: flex; flex-direction: column; gap: 0.5rem; padding: 1.1rem; text-decoration: none; color: inherit; transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease; }
+.feature-card:hover { transform: translateY(-4px); border-color: var(--glass-border-hover); box-shadow: 0 14px 30px -18px oklch(0.4 0.05 20 / 40%); }
+.feature-card p { font-size: 0.88rem; line-height: 1.5; color: var(--muted-foreground); flex: 1; }
+.feature-card__icon { display: grid; place-items: center; width: 2.4rem; height: 2.4rem; border-radius: 10px; color: color-mix(in oklch, var(--macro-kcal) 55%, var(--foreground)); background: color-mix(in oklch, var(--macro-kcal) 18%, transparent); transition: transform 0.3s ease; }
+.feature-card:hover .feature-card__icon { transform: rotate(-8deg) scale(1.1); }
+.feature-card__go { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.85rem; font-weight: 600; color: color-mix(in oklch, var(--macro-kcal) 55%, var(--foreground)); }
+.feature-card__go svg { transition: transform 0.25s ease; }
+.feature-card:hover .feature-card__go svg { transform: translateX(4px); }
+.how { display: grid; grid-template-columns: 1fr 1.1fr; gap: 1rem; align-items: start; }
+.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.7rem; }
+.steps li { display: flex; gap: 0.8rem; align-items: flex-start; padding: 0.8rem 0.9rem; border: 1px solid var(--glass-border); border-radius: 12px; background: var(--glass-bg); }
+.steps p { font-size: 0.88rem; color: var(--muted-foreground); margin-top: 0.15rem; }
+.steps__n { display: grid; place-items: center; flex: none; width: 1.8rem; height: 1.8rem; border-radius: 50%; font-weight: 700; font-size: 0.85rem; color: #fff; background: var(--macro-kcal); }
+.demo { padding: 1.1rem; display: grid; gap: 0.8rem; }
+.demo__food { font-size: 1rem; }
+.demo__slider { display: grid; grid-template-columns: 1fr auto; gap: 0.3rem 0.8rem; font-size: 0.85rem; color: var(--muted-foreground); }
+.demo__slider input { grid-column: 1 / -1; width: 100%; accent-color: var(--macro-kcal); }
+.demo__slider b { color: var(--foreground); }
+.demo__formula { font-family: ui-monospace, monospace; font-size: 0.9rem; padding: 0.7rem 0.8rem; border-radius: 10px; background: color-mix(in oklch, var(--macro-kcal) 10%, transparent); }
+.demo__chips { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.demo__chips span { font-size: 0.82rem; padding: 0.35rem 0.7rem; border-radius: 99px; border: 1px solid color-mix(in oklch, var(--c) 40%, transparent); background: color-mix(in oklch, var(--c) 10%, transparent); }
+.demo__chips b { margin-left: 0.25rem; }
+.next-step { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.1rem 1.3rem; flex-wrap: wrap; }
+.next-step p { font-size: 0.9rem; color: var(--muted-foreground); margin-top: 0.15rem; }
+
+/* ================= Animações ================= */
+@keyframes pageIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@keyframes itemIn { from { opacity: 0; transform: translateX(-12px) scale(0.98); } to { opacity: 1; transform: none; } }
+@keyframes pop { 0% { transform: scale(0.7); } 60% { transform: scale(1.18); } 100% { transform: scale(1); } }
+@keyframes riseIn { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+.page { animation: pageIn 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.hero__title, .hero__lead, .hero__actions, .hero .eyebrow, .hero__stat { animation: riseIn 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.hero .eyebrow { animation-delay: 0.05s; } .hero__title { animation-delay: 0.12s; } .hero__lead { animation-delay: 0.2s; } .hero__actions { animation-delay: 0.28s; }
+.hero__stat:nth-child(1) { animation-delay: 0.2s; } .hero__stat:nth-child(2) { animation-delay: 0.3s; } .hero__stat:nth-child(3) { animation-delay: 0.4s; }
+.feature-card[data-reveal], .steps li[data-reveal] { transition-delay: calc(var(--i, 0) * 90ms); }
+.nav-link.is-active { color: var(--foreground); }
+.nav-link.is-active::after { transform: scaleX(1); opacity: 1; }
+.diet-item { animation: itemIn 0.35s ease both; }
+.result-card { transition: transform 0.2s ease; } .result-card:hover { transform: translateY(-2px); }
+.btn:active { transform: scale(0.97); }
+.water-glass { transition: transform 0.2s ease, background 0.25s ease; cursor: pointer; }
+.water-glass:hover { transform: translateY(-2px); }
+.water-glass.is-on { animation: pop 0.35s ease; }
+
+@media (max-width: 900px) {
+  .hero__grid { grid-template-columns: 1fr; }
+  .calc__panel { grid-template-columns: 1fr; grid-template-areas: "form" "results" "diet"; grid-template-rows: auto; }
+  .macro-grid { grid-template-columns: 1fr; }
+  .feature-grid { grid-template-columns: repeat(2, 1fr); }
+  .how { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .hero__stats { grid-template-columns: repeat(3, 1fr); }
+  .hero__stat { flex-direction: column; gap: 0.1rem; text-align: center; }
+  .hero__stat strong { min-width: 0; }
+  .calc__results { grid-template-columns: repeat(2, 1fr); }
+  .feature-grid { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .page, .hero__title, .hero__lead, .hero__actions, .hero .eyebrow, .hero__stat, .diet-item, .water-glass.is-on { animation: none !important; }
+  .feature-card, .feature-card *, .result-card, .water-glass { transition: none !important; }
 }

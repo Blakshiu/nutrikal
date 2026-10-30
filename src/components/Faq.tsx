@@ -35,8 +35,10 @@ const FAQ: Array<[string, string]> = [
 export function Faq() {
   return (
     <section id="duvidas" className="section">
-      <div className="container-x" style={{ maxWidth: 820 }}>
-        <h2 className="mb-6 text-2xl font-semibold">Dúvidas frequentes</h2>
+      <div className="container-x">
+        <div className="section-head">
+          <h2>Dúvidas frequentes</h2>
+        </div>
         <Accordion type="single" collapsible className="glass px-5">
           {FAQ.map(([q, a], i) => (
             <AccordionItem key={q} value={`faq-${i}`}>
