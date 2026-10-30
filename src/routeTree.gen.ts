@@ -10,33 +10,73 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as CalculadoraRouteImport } from './routes/calculadora'
+import { Route as DuvidasRouteImport } from './routes/duvidas'
+import { Route as MetasRouteImport } from './routes/metas'
+import { Route as NutrientesRouteImport } from './routes/nutrientes'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CalculadoraRoute = CalculadoraRouteImport.update({
+  id: '/calculadora',
+  path: '/calculadora',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DuvidasRoute = DuvidasRouteImport.update({
+  id: '/duvidas',
+  path: '/duvidas',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MetasRoute = MetasRouteImport.update({
+  id: '/metas',
+  path: '/metas',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NutrientesRoute = NutrientesRouteImport.update({
+  id: '/nutrientes',
+  path: '/nutrientes',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/calculadora': typeof CalculadoraRoute
+  '/duvidas': typeof DuvidasRoute
+  '/metas': typeof MetasRoute
+  '/nutrientes': typeof NutrientesRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/calculadora': typeof CalculadoraRoute
+  '/duvidas': typeof DuvidasRoute
+  '/metas': typeof MetasRoute
+  '/nutrientes': typeof NutrientesRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/calculadora': typeof CalculadoraRoute
+  '/duvidas': typeof DuvidasRoute
+  '/metas': typeof MetasRoute
+  '/nutrientes': typeof NutrientesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/calculadora' | '/duvidas' | '/metas' | '/nutrientes'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/calculadora' | '/duvidas' | '/metas' | '/nutrientes'
+  id: '__root__' | '/' | '/calculadora' | '/duvidas' | '/metas' | '/nutrientes'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  CalculadoraRoute: typeof CalculadoraRoute
+  DuvidasRoute: typeof DuvidasRoute
+  MetasRoute: typeof MetasRoute
+  NutrientesRoute: typeof NutrientesRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +88,43 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/calculadora': {
+      id: '/calculadora'
+      path: '/calculadora'
+      fullPath: '/calculadora'
+      preLoaderRoute: typeof CalculadoraRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/duvidas': {
+      id: '/duvidas'
+      path: '/duvidas'
+      fullPath: '/duvidas'
+      preLoaderRoute: typeof DuvidasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/metas': {
+      id: '/metas'
+      path: '/metas'
+      fullPath: '/metas'
+      preLoaderRoute: typeof MetasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/nutrientes': {
+      id: '/nutrientes'
+      path: '/nutrientes'
+      fullPath: '/nutrientes'
+      preLoaderRoute: typeof NutrientesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CalculadoraRoute: CalculadoraRoute,
+  DuvidasRoute: DuvidasRoute,
+  MetasRoute: MetasRoute,
+  NutrientesRoute: NutrientesRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -1,0 +1,3377 @@
+From 583e17577935265b2c91fc4023958fb2dee9cdee Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 30 Oct 2026 20:07:20 +0000
+Subject: [PATCH] =?UTF-8?q?feat:=20p=C3=A1ginas=20por=20fun=C3=A7=C3=A3o,?=
+ =?UTF-8?q?=20anima=C3=A7=C3=B5es,=20cores=20originais=20e=20nome=20NUTRIK?=
+ =?UTF-8?q?AL?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ README.md                        |    2 +-
+ src/components/Calculadora.tsx   |  970 +++++++++++++++++++++
+ src/components/GoalsAndWater.tsx |    2 +-
+ src/components/MacroInfo.tsx     |   62 ++
+ src/components/PageParts.tsx     |   81 ++
+ src/components/SiteLayout.tsx    |   95 +++
+ src/hooks/use-animated-value.ts  |   28 +
+ src/routeTree.gen.ts             |   78 +-
+ src/routes/__root.tsx            |   93 +--
+ src/routes/calculadora.tsx       |   33 +
+ src/routes/duvidas.tsx           |   32 +
+ src/routes/index.tsx             | 1340 ++++--------------------------
+ src/routes/metas.tsx             |   41 +
+ src/routes/nutrientes.tsx        |   32 +
+ src/styles.css                   |  157 ++--
+ 15 files changed, 1710 insertions(+), 1336 deletions(-)
+ create mode 100644 src/components/Calculadora.tsx
+ create mode 100644 src/components/MacroInfo.tsx
+ create mode 100644 src/components/PageParts.tsx
+ create mode 100644 src/components/SiteLayout.tsx
+ create mode 100644 src/hooks/use-animated-value.ts
+ create mode 100644 src/routes/calculadora.tsx
+ create mode 100644 src/routes/duvidas.tsx
+ create mode 100644 src/routes/metas.tsx
+ create mode 100644 src/routes/nutrientes.tsx
+
+diff --git a/README.md b/README.md
+index 40c576b..7df3bd2 100644
+--- a/README.md
++++ b/README.md
+@@ -4,7 +4,7 @@ Uma Single Page Application (SPA) moderna e responsiva focada em nutrição, cá
+ 
+ ## 🚀 Funcionalidades
+ 
+-- **Hero Section:** Introdução impactante com navegação suave, logotipo NutriTech e um Call-to-Action direto.
++- **Hero Section:** Introdução impactante com navegação suave, logotipo NUTRIKAL e um Call-to-Action direto.
+ - **Guia de Macronutrientes:** Cards informativos explicando o papel fundamental das Proteínas (construção muscular), Carboidratos (energia) e Gorduras (função hormonal).
+ - **Calculadora Nutricional em Tempo Real:**
+   - Baseada em dados estruturados simulando a **Tabela TACO**.
+diff --git a/src/components/Calculadora.tsx b/src/components/Calculadora.tsx
+new file mode 100644
+index 0000000..57146bb
+--- /dev/null
++++ b/src/components/Calculadora.tsx
+@@ -0,0 +1,970 @@
++import { useEffect, useMemo, useState } from "react";
++import { Calculator, Droplets, Dumbbell, Flame, Search, Wheat } from "lucide-react";
++import { TACO_FOODS, type TacoFood } from "@/lib/taco-data";
++import { GoalProgress } from "@/components/GoalsAndWater";
++import { useAnimatedValue } from "@/hooks/use-animated-value";
++import { usePersistedState } from "@/hooks/use-persisted-state";
++import { DEFAULT_SECTIONS, escapeHtml, hasNoMacroData } from "@/lib/diet-tools";
++
++/** Formata número no padrão pt-BR com 1 casa decimal no máximo. */
++const formatNumber = (n: number): string => n.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
++
++/** Normaliza texto para busca sem acentos nem case. */
++const normalize = (s: string): string => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
++
++const getApproxUnitGrams = (food: TacoFood): number => {
++  const name = normalize(food.nome);
++  const approximations: Array<[string[], number]> = [
++    [["ovo"], 50],
++    [["banana"], 90],
++    [["maca"], 130],
++    [["pera"], 140],
++    [["laranja"], 150],
++    [["tangerina", "mexerica"], 100],
++    [["limao"], 60],
++    [["tomate"], 100],
++    [["cebola"], 100],
++    [["cenoura"], 80],
++    [["batata"], 150],
++    [["pao"], 50],
++  ];
++
++  return approximations.find(([terms]) => terms.some((term) => name.includes(term)))?.[1] ?? 100;
++};
++
++/* ------------------------------------------------------------------ */
++/* Header fixo com navegação suave                                     */
++/* ------------------------------------------------------------------ */
++interface MacroTotals {
++  kcal: number;
++  carboidratos: number;
++  proteinas: number;
++  gorduras: number;
++}
++
++type DietGoal = "emagrecimento" | "manutencao" | "ganho";
++type PortionUnit = "g" | "u";
++
++interface MealSection {
++  id: string;
++  name: string;
++}
++
++interface DietItem {
++  id: string;
++  sectionId: string;
++  sectionName: string;
++  quantidade: number;
++  unidade: PortionUnit;
++  nome: string;
++  categoria: string;
++  gramas: number;
++  kcal: number;
++  carboidratos: number;
++  proteinas: number;
++  gorduras: number;
++}
++
++const GOAL_OPTIONS: Record<DietGoal, { label: string; description: string; emphasis: string }> = {
++  emagrecimento: {
++    label: "Emagrecimento",
++    description: "Prioriza déficit calórico com maior saciedade e controle de porções.",
++    emphasis: "Deficit calórico orientado para perda de gordura.",
++  },
++  manutencao: {
++    label: "Manutenção",
++    description: "Mantém energia e performance com equilíbrio de macros e porções estáveis.",
++    emphasis: "Equilíbrio para sustentar treino, energia e composição corporal.",
++  },
++  ganho: {
++    label: "Ganho",
++    description: "Aumenta a ingestão total com foco em reforço de massa e recuperação.",
++    emphasis: "Superávit calórico com foco em performance e ganho de massa.",
++  },
++};
++
++/**
++ * Lógica de cálculo proporcional (regra de três):
++ *
++ * A Tabela TACO informa a composição nutricional por 100 g do alimento.
++ * Para uma gramagem qualquer `g`, cada nutriente é escalado linearmente:
++ *
++ *   nutrienteNaPorcao = (valorPor100g × g) / 100
++ *
++ * Ex.: 250 g de peito de frango (32 g de proteína/100 g)
++ *      => (32 × 250) / 100 = 80 g de proteína.
++ */
++const calcularMacros = (food: TacoFood | null, gramas: number): MacroTotals => {
++  if (!food || gramas <= 0) return { kcal: 0, carboidratos: 0, proteinas: 0, gorduras: 0 };
++
++  const { por100g } = food;
++  const fator = gramas / 100; // fator proporcional da regra de três
++
++  return {
++    kcal: por100g.kcal * fator,
++    carboidratos: por100g.carboidratos * fator,
++    proteinas: por100g.proteinas * fator,
++    gorduras: por100g.gorduras * fator,
++  };
++};
++
++function ResultCard({
++  modifier,
++  icon: Icon,
++  label,
++  value,
++  unit,
++}: {
++  modifier: string;
++  icon: typeof Flame;
++  label: string;
++  value: number;
++  unit: string;
++}) {
++  const animated = useAnimatedValue(value);
++
++  return (
++    <div className={`result-card glass ${modifier}`}>
++      <span className="result-card__label">
++        <Icon size={15} />
++        {label}
++      </span>
++      <div className="result-card__value">
++        {formatNumber(animated)}
++        <span className="result-card__unit">{unit}</span>
++      </div>
++    </div>
++  );
++}
++
++export function Calculadora() {
++  const [query, setQuery] = useState("");
++  const [selected, setSelected] = useState<TacoFood | null>(TACO_FOODS[0] ?? null);
++  const [quantidade, setQuantidade] = useState("100");
++  const [unidade, setUnidade] = useState<PortionUnit>("g");
++  const [comboOpen, setComboOpen] = useState(false);
++  const [categoria, setCategoria] = useState("Todos");
++  const [diet, setDiet] = usePersistedState<DietItem[]>("nutrikal:diet", []);
++  const [dietGoal, setDietGoal] = usePersistedState<DietGoal>("nutrikal:objective", "manutencao");
++  const [mealSections, setMealSections] = usePersistedState<MealSection[]>(
++    "nutrikal:sections",
++    DEFAULT_SECTIONS,
++  );
++  const [selectedSectionId, setSelectedSectionId] = useState("");
++  const [newSectionName, setNewSectionName] = useState("");
++  const [patientName, setPatientName] = usePersistedState("nutrikal:patient", "Paciente");
++  const [reportDate, setReportDate] = useState(() => new Date().toISOString().slice(0, 10));
++
++  /* Mantém a seção selecionada válida (seções salvas, remoções, primeira carga). */
++  useEffect(() => {
++    if (!mealSections.some((s) => s.id === selectedSectionId))
++      setSelectedSectionId(mealSections[0]?.id ?? "");
++  }, [mealSections, selectedSectionId]);
++
++  const categorias = useMemo(
++    () =>
++      ["Todos", ...new Set(TACO_FOODS.map((food) => food.categoria))].sort((a, b) =>
++        a.localeCompare(b, "pt-BR"),
++      ),
++    [],
++  );
++
++  /* Filtra a TACO pelo texto digitado e pela categoria selecionada. */
++  const filtered = useMemo(() => {
++    /* Busca por palavras: "banana prata" encontra "Banana, prata, crua". */
++    const tokens = normalize(query)
++      .split(/[\s,]+/)
++      .filter(Boolean);
++    return [...TACO_FOODS]
++      .filter((f) => {
++        const nome = normalize(f.nome);
++        return tokens.every((t) => nome.includes(t));
++      })
++      .filter((f) => categoria === "Todos" || f.categoria === categoria)
++      .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
++  }, [query, categoria]);
++
++  const groupedFoods = useMemo(() => {
++    const groups = new Map<string, TacoFood[]>();
++    for (const food of filtered) {
++      const key = food.categoria;
++      const current = groups.get(key) ?? [];
++      current.push(food);
++      groups.set(key, current);
++    }
++    return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b, "pt-BR"));
++  }, [filtered]);
++
++  const dietaTotal = useMemo(
++    () =>
++      diet.reduce(
++        (sum, item) => ({
++          kcal: sum.kcal + item.kcal,
++          carboidratos: sum.carboidratos + item.carboidratos,
++          proteinas: sum.proteinas + item.proteinas,
++          gorduras: sum.gorduras + item.gorduras,
++        }),
++        { kcal: 0, carboidratos: 0, proteinas: 0, gorduras: 0 },
++      ),
++    [diet],
++  );
++
++  const addFoodToDiet = () => {
++    if (!selected || !selectedSectionId) return;
++
++    const section = mealSections.find((item) => item.id === selectedSectionId);
++    if (!section) return;
++
++    const quantity = parseFloat(quantidade.replace(",", ".")) || 0;
++    if (quantity <= 0) return;
++
++    const grams = unidade === "g" ? quantity : quantity * getApproxUnitGrams(selected);
++
++    const factor = grams / 100;
++    const item: DietItem = {
++      id: selected.id,
++      sectionId: section.id,
++      sectionName: section.name,
++      quantidade: quantity,
++      unidade,
++      nome: selected.nome,
++      categoria: selected.categoria,
++      gramas: grams,
++      kcal: selected.por100g.kcal * factor,
++      carboidratos: selected.por100g.carboidratos * factor,
++      proteinas: selected.por100g.proteinas * factor,
++      gorduras: selected.por100g.gorduras * factor,
++    };
++
++    setDiet((prev) => {
++      const existing = prev.find(
++        (entry) => entry.id === selected.id && entry.sectionId === section.id,
++      );
++      if (!existing) return [...prev, item];
++
++      return prev.map((entry) =>
++        entry.id === selected.id && entry.sectionId === section.id
++          ? {
++              ...entry,
++              quantidade: entry.quantidade + quantity,
++              gramas: entry.gramas + grams,
++              kcal: entry.kcal + item.kcal,
++              carboidratos: entry.carboidratos + item.carboidratos,
++              proteinas: entry.proteinas + item.proteinas,
++              gorduras: entry.gorduras + item.gorduras,
++            }
++          : entry,
++      );
++    });
++  };
++
++  const removeFromDiet = (id: string, sectionId: string) => {
++    setDiet((prev) => prev.filter((item) => item.id !== id || item.sectionId !== sectionId));
++  };
++
++  const addMealSection = () => {
++    const name = newSectionName.trim();
++    if (!name) return;
++
++    const section: MealSection = {
++      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
++      name,
++    };
++    setMealSections((prev) => [...prev, section]);
++    setSelectedSectionId(section.id);
++    setNewSectionName("");
++  };
++
++  const exportDiet = (format: "pdf" | "doc") => {
++    if (diet.length === 0) return;
++
++    const safePatientName = patientName.trim() || "Paciente";
++    const reportDateLabel = reportDate
++      ? new Date(`${reportDate}T12:00:00`).toLocaleDateString("pt-BR", {
++          day: "2-digit",
++          month: "2-digit",
++          year: "numeric",
++        })
++      : new Date().toLocaleDateString("pt-BR", {
++          day: "2-digit",
++          month: "2-digit",
++          year: "numeric",
++        });
++    const goalLabel = GOAL_OPTIONS[dietGoal].label;
++    const confirmed = window.confirm(
++      format === "pdf"
++        ? `O relatório de ${safePatientName} para ${goalLabel.toLowerCase()} está pronto para exportar em PDF?`
++        : `O relatório de ${safePatientName} para ${goalLabel.toLowerCase()} está pronto para exportar em Word?`,
++    );
++
++    if (!confirmed) return;
++
++    const rows = mealSections
++      .map((section) => {
++        const sectionItems = diet.filter((item) => item.sectionId === section.id);
++        if (sectionItems.length === 0) return "";
++
++        return `
++          <tr class="section-row">
++            <td colspan="6">${escapeHtml(section.name)}</td>
++          </tr>
++          ${sectionItems
++            .map(
++              (item) => `
++          <tr>
++            <td>${escapeHtml(item.nome)}</td>
++            <td>${formatNumber(item.quantidade)} ${item.unidade} <small>(${formatNumber(item.gramas)} g)</small></td>
++            <td>${formatNumber(item.kcal)} kcal</td>
++            <td>${formatNumber(item.proteinas)} g</td>
++            <td>${formatNumber(item.carboidratos)} g</td>
++            <td>${formatNumber(item.gorduras)} g</td>
++          </tr>`,
++            )
++            .join("")}`;
++      })
++      .join("");
++
++    const html = `
++      <html>
++        <head>
++          <meta charset="utf-8" />
++          <title>NUTRIKAL — Plano alimentar</title>
++          <style>
++            :root {
++              --pink: #e7a6b0;
++              --pink-strong: #c56b74;
++              --brown: #5d3b35;
++              --cream: #fff8f7;
++              --line: #ebd5d9;
++              --text: #3f2c2a;
++              --muted: #7a5d5d;
++            }
++
++            * { box-sizing: border-box; }
++            body {
++              margin: 0;
++              padding: 32px;
++              font-family: Arial, sans-serif;
++              color: var(--text);
++              background: var(--cream);
++            }
++            .report {
++              max-width: 980px;
++              margin: 0 auto;
++              background: #fff;
++              border: 1px solid var(--line);
++              border-radius: 18px;
++              overflow: hidden;
++              box-shadow: 0 14px 40px rgba(93, 59, 53, 0.08);
++            }
++            .header {
++              display: flex;
++              align-items: center;
++              justify-content: space-between;
++              padding: 24px 30px;
++              background: linear-gradient(135deg, #fbe9ed 0%, #f5dfe3 100%);
++              border-bottom: 1px solid var(--line);
++            }
++            .brand {
++              display: flex;
++              align-items: center;
++              gap: 10px;
++              font-size: 22px;
++              font-weight: 700;
++              letter-spacing: 0.05em;
++              color: var(--brown);
++            }
++            .brand-mark {
++              width: 28px;
++              height: 28px;
++              border-radius: 8px;
++              display: inline-flex;
++              align-items: center;
++              justify-content: center;
++              background: linear-gradient(135deg, var(--pink) 0%, var(--pink-strong) 100%);
++              color: white;
++              font-weight: 700;
++            }
++            .header small {
++              color: var(--muted);
++              font-size: 12px;
++              letter-spacing: 0.08em;
++              text-transform: uppercase;
++            }
++            .content {
++              padding: 28px 30px 32px;
++            }
++            .summary-bar {
++              display: grid;
++              grid-template-columns: repeat(4, minmax(140px, 1fr));
++              gap: 12px;
++              margin-bottom: 22px;
++            }
++            .kpi {
++              background: #fff9f9;
++              border: 1px solid var(--line);
++              border-radius: 12px;
++              padding: 14px 16px;
++            }
++            .kpi-label {
++              display: block;
++              font-size: 11px;
++              letter-spacing: 0.1em;
++              text-transform: uppercase;
++              color: var(--muted);
++              margin-bottom: 6px;
++            }
++            .kpi-value {
++              font-size: 22px;
++              font-weight: 700;
++              color: var(--brown);
++            }
++            .goal {
++              margin-bottom: 20px;
++              padding: 14px 16px;
++              border-left: 4px solid var(--pink-strong);
++              background: #fff6f7;
++              border-radius: 10px;
++              color: var(--brown);
++              font-weight: 600;
++            }
++            .goal span { color: var(--muted); font-weight: 500; }
++            .patient-meta {
++              display: flex;
++              gap: 18px;
++              flex-wrap: wrap;
++              padding: 14px 16px;
++              background: #ffffff;
++              border: 1px solid var(--line);
++              border-radius: 10px;
++              margin-bottom: 18px;
++              color: var(--brown);
++              font-weight: 600;
++            }
++            .patient-meta span {
++              color: var(--muted);
++              font-weight: 500;
++            }
++            table {
++              width: 100%;
++              border-collapse: collapse;
++              margin-top: 12px;
++              font-size: 14px;
++            }
++            th, td {
++              border: 1px solid var(--line);
++              padding: 11px 10px;
++              text-align: left;
++            }
++            th {
++              background: #f8edf0;
++              color: var(--brown);
++              font-weight: 700;
++            }
++            .section-row td {
++              padding: 13px 10px 8px;
++              border: none;
++              border-bottom: 2px solid var(--pink);
++              background: #fff;
++              color: var(--pink-strong);
++              font-size: 12px;
++              font-weight: 700;
++              letter-spacing: 0.1em;
++              text-transform: uppercase;
++            }
++            tbody tr:nth-child(even) { background: #fffaf9; }
++            .footer-note {
++              margin-top: 18px;
++              font-size: 12px;
++              color: var(--muted);
++            }
++          </style>
++        </head>
++        <body>
++          <div class="report">
++            <div class="header">
++              <div class="brand">
++                <span class="brand-mark">N</span>
++                NUTRIKAL
++              </div>
++              <small>Plano alimentar · ${goalLabel}</small>
++            </div>
++
++            <div class="content">
++              <div class="summary-bar">
++                <div class="kpi">
++                  <span class="kpi-label">Calorias</span>
++                  <span class="kpi-value">${formatNumber(dietaTotal.kcal)} kcal</span>
++                </div>
++                <div class="kpi">
++                  <span class="kpi-label">Proteína</span>
++                  <span class="kpi-value">${formatNumber(dietaTotal.proteinas)} g</span>
++                </div>
++                <div class="kpi">
++                  <span class="kpi-label">Carboidratos</span>
++                  <span class="kpi-value">${formatNumber(dietaTotal.carboidratos)} g</span>
++                </div>
++                <div class="kpi">
++                  <span class="kpi-label">Gorduras</span>
++                  <span class="kpi-value">${formatNumber(dietaTotal.gorduras)} g</span>
++                </div>
++              </div>
++
++              <div class="patient-meta">
++                <div>Paciente: <strong>${escapeHtml(safePatientName)}</strong></div>
++                <div>Data: <span>${reportDateLabel}</span></div>
++              </div>
++
++              <div class="goal">
++                Objetivo: ${goalLabel} <span>· ${GOAL_OPTIONS[dietGoal].emphasis}</span>
++              </div>
++
++              <table>
++                <thead>
++                  <tr>
++                    <th>Alimento</th>
++                    <th>Quantidade</th>
++                    <th>Calorias</th>
++                    <th>Proteína</th>
++                    <th>Carboidratos</th>
++                    <th>Gorduras</th>
++                  </tr>
++                </thead>
++                <tbody>${rows}</tbody>
++              </table>
++
++              <div class="footer-note">
++                Documento gerado pela calculadora NUTRIKAL com base na Tabela TACO.
++                Quantidades em unidades usam peso médio aproximado por alimento e devem ser conferidas quando necessário.
++              </div>
++            </div>
++          </div>
++        </body>
++      </html>
++    `;
++
++    if (format === "pdf") {
++      const printWindow = window.open("", "_blank", "width=1100,height=900");
++      if (!printWindow) return;
++      printWindow.document.write(html);
++      printWindow.document.close();
++      printWindow.focus();
++      printWindow.print();
++      return;
++    }
++
++    const blob = new Blob([html], {
++      type: "application/vnd.ms-word; charset=utf-8",
++    });
++    const url = URL.createObjectURL(blob);
++    const anchor = document.createElement("a");
++    anchor.href = url;
++    anchor.download = `nutrikal-dieta-${dietGoal}.doc`;
++    anchor.click();
++    URL.revokeObjectURL(url);
++  };
++
++  /* Recalcula em tempo real a cada input de alimento ou gramagem. */
++  const quantidadeNum = parseFloat(quantidade.replace(",", ".")) || 0;
++  const gramasNum =
++    unidade === "g"
++      ? quantidadeNum
++      : quantidadeNum * (selected ? getApproxUnitGrams(selected) : 100);
++  const totals = useMemo(() => calcularMacros(selected, gramasNum), [selected, gramasNum]);
++
++  /* Distribuição calórica: proteína/carbo = 4 kcal/g, gordura = 9 kcal/g. */
++  const kcalProt = totals.proteinas * 4;
++  const kcalCarb = totals.carboidratos * 4;
++  const kcalGord = totals.gorduras * 9;
++  const kcalTotal = kcalProt + kcalCarb + kcalGord;
++  const pct = (v: number) => (kcalTotal > 0 ? (v / kcalTotal) * 100 : 0);
++
++  const selectFood = (food: TacoFood) => {
++    setSelected(food);
++    setQuery("");
++    setComboOpen(false);
++  };
++
++  const renderGroup = (label: string, items: TacoFood[]) =>
++    items.length > 0 && (
++      <div key={label}>
++        <div className="combo__group">{label}</div>
++        {items.map((food) => (
++          <button
++            key={food.id}
++            type="button"
++            className={`combo__item ${selected?.id === food.id ? "is-active" : ""}`}
++            /* onMouseDown + preventDefault: seleciona antes do blur fechar a lista */
++            onMouseDown={(e) => {
++              e.preventDefault();
++              selectFood(food);
++            }}
++          >
++            {food.nome}
++            <small>{food.por100g.kcal} kcal/100g</small>
++          </button>
++        ))}
++      </div>
++    );
++
++  return (
++    <section id="calculadora" className="section calc">
++      <div className="container-x">
++        <div className="section-head" data-reveal>
++          <span className="eyebrow">
++            <Calculator size={14} />
++            Calculadora de Nutrientes
++          </span>
++          <h2>Sua porção, calculada ao grama</h2>
++          <p>
++            Escolha um alimento da Tabela TACO, informe a gramagem e veja os macronutrientes
++            atualizarem em tempo real.
++          </p>
++        </div>
++
++        <div className="calc__panel glass" data-reveal>
++          {/* ---------- Inputs ---------- */}
++          <div className="calc__form">
++            <div className="field">
++              <label htmlFor="food-search">Alimento</label>
++              <div className="combo">
++                <Search size={17} className="combo__icon" />
++                <input
++                  id="food-search"
++                  className="input"
++                  type="text"
++                  placeholder={selected ? selected.nome : "Busque um alimento…"}
++                  value={comboOpen || query ? query : (selected?.nome ?? "")}
++                  autoComplete="off"
++                  onFocus={() => setComboOpen(true)}
++                  onBlur={() => setComboOpen(false)}
++                  onChange={(e) => {
++                    setQuery(e.target.value);
++                    setComboOpen(true);
++                  }}
++                />
++                {comboOpen && (
++                  <div className="combo__list" role="listbox">
++                    {filtered.length === 0 && (
++                      <div className="combo__empty">Nenhum alimento encontrado para “{query}”.</div>
++                    )}
++                    {groupedFoods.map(([label, items]) => renderGroup(label, items))}
++                  </div>
++                )}
++              </div>
++              {selected && (
++                <p className="field-hint">
++                  Base: {selected.por100g.kcal} kcal · {formatNumber(selected.por100g.proteinas)} g
++                  prot · {formatNumber(selected.por100g.carboidratos)} g carb ·{" "}
++                  {formatNumber(selected.por100g.gorduras)} g gord — por 100 g
++                </p>
++              )}
++            </div>
++
++            <div className="field">
++              <label htmlFor="category-filter">Categoria</label>
++              <select
++                id="category-filter"
++                className="input"
++                value={categoria}
++                onChange={(e) => setCategoria(e.target.value)}
++              >
++                {categorias.map((option) => (
++                  <option key={option} value={option}>
++                    {option}
++                  </option>
++                ))}
++              </select>
++              <p className="field-hint">
++                Explore a base completa da TACO por categoria e encontre o alimento certo.
++              </p>
++            </div>
++
++            <div className="field">
++              <label htmlFor="diet-goal">Objetivo da dieta</label>
++              <div className="goal-selector" id="diet-goal">
++                {(Object.keys(GOAL_OPTIONS) as DietGoal[]).map((goal) => (
++                  <button
++                    key={goal}
++                    type="button"
++                    className={`goal-option ${dietGoal === goal ? "is-selected" : ""}`}
++                    onClick={() => setDietGoal(goal)}
++                  >
++                    {GOAL_OPTIONS[goal].label}
++                  </button>
++                ))}
++              </div>
++              <p className="field-hint">{GOAL_OPTIONS[dietGoal].description}</p>
++            </div>
++
++            <div className="field">
++              <label htmlFor="quantity">Quantidade</label>
++              <div className="portion-input">
++                <input
++                  id="quantity"
++                  className="input"
++                  type="number"
++                  min="0"
++                  step="1"
++                  inputMode="decimal"
++                  placeholder={unidade === "g" ? "Ex.: 150" : "Ex.: 2"}
++                  value={quantidade}
++                  onChange={(e) => setQuantidade(e.target.value)}
++                />
++                <select
++                  id="portion-unit"
++                  className="input portion-unit"
++                  aria-label="Unidade da quantidade"
++                  value={unidade}
++                  onChange={(e) => setUnidade(e.target.value as PortionUnit)}
++                >
++                  <option value="g">gramas (g)</option>
++                  <option value="u">unidades (u)</option>
++                </select>
++              </div>
++              <p className="field-hint">
++                {unidade === "g"
++                  ? "O cálculo aplica regra de três sobre a base oficial de 100 g."
++                  : `Estimativa: 1 unidade de ${selected?.nome ?? "alimento"} ≈ ${selected ? getApproxUnitGrams(selected) : 100} g.`}
++              </p>
++              {selected && hasNoMacroData(selected) && (
++                <p className="field-hint" role="alert">
++                  Atenção: este item está sem valores na base importada da TACO. Confirme na tabela
++                  oficial antes de usar.
++                </p>
++              )}
++            </div>
++
++            <div className="field">
++              <label htmlFor="meal-section">Seção da refeição</label>
++              {mealSections.length > 0 ? (
++                <select
++                  id="meal-section"
++                  className="input"
++                  value={selectedSectionId}
++                  onChange={(e) => setSelectedSectionId(e.target.value)}
++                >
++                  <option value="">Escolha uma seção</option>
++                  {mealSections.map((section) => (
++                    <option key={section.id} value={section.id}>
++                      {section.name}
++                    </option>
++                  ))}
++                </select>
++              ) : (
++                <p className="field-hint field-hint--alert">
++                  Crie uma seção abaixo antes de adicionar alimentos.
++                </p>
++              )}
++              <p className="field-hint">
++                O alimento será incluído na seção escolhida da sua dieta.
++              </p>
++            </div>
++
++            <div className="field">
++              <label htmlFor="new-meal-section">Criar nova seção</label>
++              <div className="section-create">
++                <input
++                  id="new-meal-section"
++                  className="input"
++                  type="text"
++                  value={newSectionName}
++                  onChange={(e) => setNewSectionName(e.target.value)}
++                  onKeyDown={(e) => {
++                    if (e.key === "Enter") addMealSection();
++                  }}
++                  placeholder="Ex.: Pré-treino"
++                />
++                <button type="button" className="btn btn-ghost" onClick={addMealSection}>
++                  Adicionar seção
++                </button>
++              </div>
++            </div>
++
++            <div className="diet-actions">
++              <button
++                type="button"
++                className="btn btn-primary"
++                onClick={addFoodToDiet}
++                disabled={!selected || !selectedSectionId}
++              >
++                Adicionar alimento
++              </button>
++            </div>
++          </div>
++
++          {/* ---------- Outputs ---------- */}
++          <div className="calc__results" aria-live="polite">
++            <ResultCard
++              modifier="result-card--kcal"
++              icon={Flame}
++              label="Calorias"
++              value={totals.kcal}
++              unit="kcal"
++            />
++            <ResultCard
++              modifier="result-card--proteina"
++              icon={Dumbbell}
++              label="Proteínas"
++              value={totals.proteinas}
++              unit="g"
++            />
++            <ResultCard
++              modifier="result-card--carbo"
++              icon={Wheat}
++              label="Carboidratos"
++              value={totals.carboidratos}
++              unit="g"
++            />
++            <ResultCard
++              modifier="result-card--gordura"
++              icon={Droplets}
++              label="Gorduras"
++              value={totals.gorduras}
++              unit="g"
++            />
++
++            {/* Distribuição calórica dos macros */}
++            <div className="macro-split glass">
++              <div className="macro-split__header">
++                <span>Distribuição calórica</span>
++                <span>
++                  {selected ? `${selected.nome} · ${quantidadeNum || 0} ${unidade}` : "—"}
++                </span>
++              </div>
++              <div className="macro-split__track">
++                <div
++                  className="macro-split__seg macro-split__seg--proteina"
++                  style={{ width: `${pct(kcalProt)}%` }}
++                />
++                <div
++                  className="macro-split__seg macro-split__seg--carbo"
++                  style={{ width: `${pct(kcalCarb)}%` }}
++                />
++                <div
++                  className="macro-split__seg macro-split__seg--gordura"
++                  style={{ width: `${pct(kcalGord)}%` }}
++                />
++              </div>
++              <div className="macro-split__legend">
++                <span>
++                  <i className="legend-dot--proteina" />
++                  Proteína {formatNumber(pct(kcalProt))}%
++                </span>
++                <span>
++                  <i className="legend-dot--carbo" />
++                  Carbo {formatNumber(pct(kcalCarb))}%
++                </span>
++                <span>
++                  <i className="legend-dot--gordura" />
++                  Gordura {formatNumber(pct(kcalGord))}%
++                </span>
++              </div>
++            </div>
++          </div>
++
++          <div className="diet-panel glass" data-reveal>
++            <div className="diet-panel__header">
++              <div>
++                <span className="eyebrow">Dieta montada</span>
++                <h3>Minha refeição</h3>
++              </div>
++              <div className="diet-panel__summary">{formatNumber(dietaTotal.kcal)} kcal</div>
++            </div>
++
++            {diet.length === 0 ? (
++              <p className="diet-empty">
++                Nenhum alimento adicionado ainda. Escolha um alimento e clique em “Adicionar
++                alimento”.
++              </p>
++            ) : (
++              <div className="diet-sections">
++                <GoalProgress total={dietaTotal} />
++                {mealSections.map((section) => {
++                  const sectionItems = diet.filter((item) => item.sectionId === section.id);
++                  if (sectionItems.length === 0) return null;
++
++                  return (
++                    <section key={section.id} className="diet-section">
++                      <h4>{section.name}</h4>
++                      <ul className="diet-list">
++                        {sectionItems.map((item) => (
++                          <li key={`${item.sectionId}-${item.id}`} className="diet-item">
++                            <div>
++                              <strong>{item.nome}</strong>
++                              <span>
++                                {formatNumber(item.quantidade)} {item.unidade} ·{" "}
++                                {formatNumber(item.kcal)} kcal
++                              </span>
++                            </div>
++                            <button
++                              type="button"
++                              onClick={() => removeFromDiet(item.id, item.sectionId)}
++                            >
++                              Remover
++                            </button>
++                          </li>
++                        ))}
++                      </ul>
++                    </section>
++                  );
++                })}
++              </div>
++            )}
++
++            <div className="diet-panel__meta">
++              <span>Objetivo: {GOAL_OPTIONS[dietGoal].label}</span>
++              <span>Paciente: {patientName.trim() || "Paciente"}</span>
++              <span>Proteína: {formatNumber(dietaTotal.proteinas)} g</span>
++              <span>Carboidratos: {formatNumber(dietaTotal.carboidratos)} g</span>
++              <span>Gorduras: {formatNumber(dietaTotal.gorduras)} g</span>
++            </div>
++
++            <div className="diet-report-fields">
++              <div className="field">
++                <label htmlFor="patient-name">Nome do paciente</label>
++                <input
++                  id="patient-name"
++                  className="input"
++                  type="text"
++                  value={patientName}
++                  onChange={(e) => setPatientName(e.target.value)}
++                  placeholder="Ex.: Maria Souza"
++                />
++              </div>
++
++              <div className="field">
++                <label htmlFor="report-date">Data do relatório</label>
++                <input
++                  id="report-date"
++                  className="input"
++                  type="date"
++                  value={reportDate}
++                  onChange={(e) => setReportDate(e.target.value)}
++                />
++              </div>
++            </div>
++
++            <div className="diet-export-actions">
++              <button type="button" className="btn btn-primary" onClick={() => exportDiet("pdf")}>
++                A dieta está pronta? Exportar PDF
++              </button>
++              <button type="button" className="btn btn-ghost" onClick={() => exportDiet("doc")}>
++                Exportar Word
++              </button>
++            </div>
++          </div>
++        </div>
++
++        <p className="calc__footnote" data-reveal>
++          Valores aproximados por 100 g conforme a Tabela TACO (4ª edição, UNICAMP). Suplementos
++          incluídos apenas para demonstração.
++        </p>
++      </div>
++    </section>
++  );
++}
++
++/* ------------------------------------------------------------------ */
++/* Página                                                              */
++/* ------------------------------------------------------------------ */
+diff --git a/src/components/GoalsAndWater.tsx b/src/components/GoalsAndWater.tsx
+index a735253..2f1ad1b 100644
+--- a/src/components/GoalsAndWater.tsx
++++ b/src/components/GoalsAndWater.tsx
+@@ -227,7 +227,7 @@ export function GoalsAndWater() {
+                 aria-label={`Copo ${i + 1} de ${waterTarget}`}
+                 aria-pressed={i < glasses}
+                 onClick={() => toggleGlass(i)}
+-                className={`rounded-lg p-2 ${i < glasses ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
++                className={`water-glass ${i < glasses ? "is-on" : ""} rounded-lg p-2 ${i < glasses ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
+               >
+                 <Droplets size={20} />
+               </button>
+diff --git a/src/components/MacroInfo.tsx b/src/components/MacroInfo.tsx
+new file mode 100644
+index 0000000..9f2895b
+--- /dev/null
++++ b/src/components/MacroInfo.tsx
+@@ -0,0 +1,62 @@
++import { Droplets, Dumbbell, Wheat } from "lucide-react";
++
++const MACRO_CARDS = [
++  {
++    icon: Dumbbell,
++    modifier: "macro-card--proteina",
++    titulo: "Proteínas",
++    descricao:
++      "Os blocos de construção do corpo. Essenciais para síntese e reparo muscular, saciedade prolongada e manutenção da massa magra durante déficit calórico.",
++    tag: "4 kcal por grama",
++  },
++  {
++    icon: Wheat,
++    modifier: "macro-card--carbo",
++    titulo: "Carboidratos",
++    descricao:
++      "A principal fonte de energia do organismo. Abastecem o glicogênio muscular e o cérebro, sustentando treinos intensos e a performance cognitiva.",
++    tag: "4 kcal por grama",
++  },
++  {
++    icon: Droplets,
++    modifier: "macro-card--gordura",
++    titulo: "Gorduras",
++    descricao:
++      "Fundamentais para a produção hormonal, absorção de vitaminas lipossolúveis (A, D, E, K) e saúde celular. O equilíbrio certo sustenta o metabolismo.",
++    tag: "9 kcal por grama",
++  },
++];
++
++export function MacroInfo() {
++  return (
++    <section id="nutrientes" className="section">
++      <div className="container-x">
++        <div className="section-head" data-reveal>
++          <span className="eyebrow">Fundamentos</span>
++          <h2>Os três pilares da sua dieta</h2>
++          <p>
++            Nenhum macronutriente é vilão ou herói isolado. O resultado vem do equilíbrio calculado
++            entre eles, ajustado ao seu objetivo.
++          </p>
++        </div>
++
++        <div className="macro-grid">
++          {MACRO_CARDS.map(({ icon: Icon, modifier, titulo, descricao, tag }) => (
++            <article key={titulo} className={`macro-card glass ${modifier}`} data-reveal>
++              <span className="macro-card__icon">
++                <Icon size={22} />
++              </span>
++              <h3>{titulo}</h3>
++              <p>{descricao}</p>
++              <span className="macro-card__tag">{tag}</span>
++            </article>
++          ))}
++        </div>
++      </div>
++    </section>
++  );
++}
++
++/* ------------------------------------------------------------------ */
++/* Calculadora de nutrientes — painel dashboard                        */
++/* ------------------------------------------------------------------ */
+diff --git a/src/components/PageParts.tsx b/src/components/PageParts.tsx
+new file mode 100644
+index 0000000..5280385
+--- /dev/null
++++ b/src/components/PageParts.tsx
+@@ -0,0 +1,81 @@
++import { Link } from "@tanstack/react-router";
++import { ArrowRight } from "lucide-react";
++import { useEffect, type ComponentType, type ReactNode } from "react";
++
++export function PageHead({
++  icon: Icon,
++  eyebrow,
++  title,
++  children,
++}: {
++  icon: ComponentType<{ size?: number }>;
++  eyebrow: string;
++  title: string;
++  children: ReactNode;
++}) {
++  return (
++    <section className="section" style={{ paddingBottom: 0 }}>
++      <div className="container-x page-head">
++        <span className="eyebrow">
++          <Icon size={14} />
++          {eyebrow}
++        </span>
++        <h1>{title}</h1>
++        <p>{children}</p>
++      </div>
++    </section>
++  );
++}
++
++/** Convite para o próximo passo do fluxo (mantém a navegação intuitiva). */
++export function NextStep({
++  to,
++  title,
++  text,
++  cta,
++}: {
++  to: "/" | "/calculadora" | "/metas" | "/nutrientes" | "/duvidas";
++  title: string;
++  text: string;
++  cta: string;
++}) {
++  return (
++    <section className="section" style={{ paddingTop: 0 }}>
++      <div className="container-x">
++        <div className="next-step glass" data-reveal>
++          <div>
++            <strong>{title}</strong>
++            <p>{text}</p>
++          </div>
++          <Link to={to} className="btn btn-primary">
++            {cta}
++            <ArrowRight size={16} />
++          </Link>
++        </div>
++      </div>
++    </section>
++  );
++}
++
++/**
++ * Revela os elementos [data-reveal] ao rolar. Fica dentro de cada página para
++ * rodar só depois que o conteúdo da própria página foi hidratado.
++ */
++export function RevealOnScroll() {
++  useEffect(() => {
++    const observer = new IntersectionObserver(
++      (entries) => {
++        for (const entry of entries) {
++          if (entry.isIntersecting) {
++            entry.target.classList.add("is-visible");
++            observer.unobserve(entry.target);
++          }
++        }
++      },
++      { threshold: 0.12 },
++    );
++    document.querySelectorAll("[data-reveal]").forEach((el) => observer.observe(el));
++    return () => observer.disconnect();
++  }, []);
++  return null;
++}
+diff --git a/src/components/SiteLayout.tsx b/src/components/SiteLayout.tsx
+new file mode 100644
+index 0000000..632e37c
+--- /dev/null
++++ b/src/components/SiteLayout.tsx
+@@ -0,0 +1,95 @@
++import { Link, useRouterState } from "@tanstack/react-router";
++import { Leaf, Menu, X } from "lucide-react";
++import { useEffect, useState, type ReactNode } from "react";
++
++const LINKS = [
++  { to: "/", label: "Início" },
++  { to: "/calculadora", label: "Calculadora" },
++  { to: "/metas", label: "Metas e água" },
++  { to: "/nutrientes", label: "Nutrientes" },
++  { to: "/duvidas", label: "Dúvidas" },
++] as const;
++
++function Logo({ size }: { size: number }) {
++  return (
++    <Link to="/" className="logo" aria-label="NUTRIKAL — início">
++      <span className="logo__mark">
++        <Leaf size={size} strokeWidth={2.5} />
++      </span>
++      <span className="logo__name">
++        NUTRI<em>KAL</em>
++      </span>
++    </Link>
++  );
++}
++
++export function SiteLayout({ children }: { children: ReactNode }) {
++  const pathname = useRouterState({ select: (s) => s.location.pathname });
++  const [scrolled, setScrolled] = useState(false);
++  const [menuOpen, setMenuOpen] = useState(false);
++
++  useEffect(() => {
++    const onScroll = () => setScrolled(window.scrollY > 12);
++    onScroll();
++    window.addEventListener("scroll", onScroll, { passive: true });
++    return () => window.removeEventListener("scroll", onScroll);
++  }, []);
++
++  /* A cada página: fecha o menu móvel */
++  useEffect(() => {
++    setMenuOpen(false);
++  }, [pathname]);
++
++  return (
++    <>
++      <header className={`site-header ${scrolled ? "is-scrolled" : ""}`}>
++        <div className="container-x site-header__inner">
++          <Logo size={17} />
++          <nav className="main-nav" aria-label="Navegação principal">
++            {LINKS.map((l) => (
++              <Link
++                key={l.to}
++                to={l.to}
++                className="nav-link"
++                activeOptions={{ exact: true }}
++                activeProps={{ className: "is-active" }}
++              >
++                {l.label}
++              </Link>
++            ))}
++          </nav>
++          <button
++            className="menu-toggle"
++            aria-label={menuOpen ? "Fechar menu" : "Abrir menu"}
++            aria-expanded={menuOpen}
++            onClick={() => setMenuOpen((v) => !v)}
++          >
++            {menuOpen ? <X size={20} /> : <Menu size={20} />}
++          </button>
++        </div>
++        <nav className={`mobile-nav ${menuOpen ? "is-open" : ""}`} aria-label="Navegação móvel">
++          {LINKS.map((l) => (
++            <Link
++              key={l.to}
++              to={l.to}
++              className="nav-link"
++              activeOptions={{ exact: true }}
++              activeProps={{ className: "is-active" }}
++            >
++              {l.label}
++            </Link>
++          ))}
++        </nav>
++      </header>
++      <main key={pathname} className="page">
++        {children}
++      </main>
++      <footer className="site-footer">
++        <div className="container-x site-footer__inner">
++          <Logo size={15} />
++          <span>© 2026 NUTRIKAL · Dados de referência: Tabela TACO (UNICAMP)</span>
++        </div>
++      </footer>
++    </>
++  );
++}
+diff --git a/src/hooks/use-animated-value.ts b/src/hooks/use-animated-value.ts
+new file mode 100644
+index 0000000..180135d
+--- /dev/null
++++ b/src/hooks/use-animated-value.ts
+@@ -0,0 +1,28 @@
++import { useEffect, useRef, useState } from "react";
++
++/** Anima transições numéricas (count-up suave entre valores). */
++export function useAnimatedValue(target: number, duration = 450): number {
++  const [value, setValue] = useState(target);
++  const previous = useRef(target);
++
++  useEffect(() => {
++    const from = previous.current;
++    if (from === target) return;
++
++    let raf = 0;
++    const start = performance.now();
++
++    const tick = (now: number) => {
++      const t = Math.min((now - start) / duration, 1);
++      const eased = 1 - Math.pow(1 - t, 3); // easeOutCubic
++      setValue(from + (target - from) * eased);
++      if (t < 1) raf = requestAnimationFrame(tick);
++    };
++
++    raf = requestAnimationFrame(tick);
++    previous.current = target;
++    return () => cancelAnimationFrame(raf);
++  }, [target, duration]);
++
++  return value;
++}
+diff --git a/src/routeTree.gen.ts b/src/routeTree.gen.ts
+index 20a48e5..93d5208 100644
+--- a/src/routeTree.gen.ts
++++ b/src/routeTree.gen.ts
+@@ -10,33 +10,73 @@
+ 
+ import { Route as rootRouteImport } from './routes/__root'
+ import { Route as IndexRouteImport } from './routes/index'
++import { Route as CalculadoraRouteImport } from './routes/calculadora'
++import { Route as DuvidasRouteImport } from './routes/duvidas'
++import { Route as MetasRouteImport } from './routes/metas'
++import { Route as NutrientesRouteImport } from './routes/nutrientes'
+ 
+ const IndexRoute = IndexRouteImport.update({
+   id: '/',
+   path: '/',
+   getParentRoute: () => rootRouteImport,
+ } as any)
++const CalculadoraRoute = CalculadoraRouteImport.update({
++  id: '/calculadora',
++  path: '/calculadora',
++  getParentRoute: () => rootRouteImport,
++} as any)
++const DuvidasRoute = DuvidasRouteImport.update({
++  id: '/duvidas',
++  path: '/duvidas',
++  getParentRoute: () => rootRouteImport,
++} as any)
++const MetasRoute = MetasRouteImport.update({
++  id: '/metas',
++  path: '/metas',
++  getParentRoute: () => rootRouteImport,
++} as any)
++const NutrientesRoute = NutrientesRouteImport.update({
++  id: '/nutrientes',
++  path: '/nutrientes',
++  getParentRoute: () => rootRouteImport,
++} as any)
+ 
+ export interface FileRoutesByFullPath {
+   '/': typeof IndexRoute
++  '/calculadora': typeof CalculadoraRoute
++  '/duvidas': typeof DuvidasRoute
++  '/metas': typeof MetasRoute
++  '/nutrientes': typeof NutrientesRoute
+ }
+ export interface FileRoutesByTo {
+   '/': typeof IndexRoute
++  '/calculadora': typeof CalculadoraRoute
++  '/duvidas': typeof DuvidasRoute
++  '/metas': typeof MetasRoute
++  '/nutrientes': typeof NutrientesRoute
+ }
+ export interface FileRoutesById {
+   __root__: typeof rootRouteImport
+   '/': typeof IndexRoute
++  '/calculadora': typeof CalculadoraRoute
++  '/duvidas': typeof DuvidasRoute
++  '/metas': typeof MetasRoute
++  '/nutrientes': typeof NutrientesRoute
+ }
+ export interface FileRouteTypes {
+   fileRoutesByFullPath: FileRoutesByFullPath
+-  fullPaths: '/'
++  fullPaths: '/' | '/calculadora' | '/duvidas' | '/metas' | '/nutrientes'
+   fileRoutesByTo: FileRoutesByTo
+-  to: '/'
+-  id: '__root__' | '/'
++  to: '/' | '/calculadora' | '/duvidas' | '/metas' | '/nutrientes'
++  id: '__root__' | '/' | '/calculadora' | '/duvidas' | '/metas' | '/nutrientes'
+   fileRoutesById: FileRoutesById
+ }
+ export interface RootRouteChildren {
+   IndexRoute: typeof IndexRoute
++  CalculadoraRoute: typeof CalculadoraRoute
++  DuvidasRoute: typeof DuvidasRoute
++  MetasRoute: typeof MetasRoute
++  NutrientesRoute: typeof NutrientesRoute
+ }
+ 
+ declare module '@tanstack/react-router' {
+@@ -48,11 +88,43 @@ declare module '@tanstack/react-router' {
+       preLoaderRoute: typeof IndexRouteImport
+       parentRoute: typeof rootRouteImport
+     }
++    '/calculadora': {
++      id: '/calculadora'
++      path: '/calculadora'
++      fullPath: '/calculadora'
++      preLoaderRoute: typeof CalculadoraRouteImport
++      parentRoute: typeof rootRouteImport
++    }
++    '/duvidas': {
++      id: '/duvidas'
++      path: '/duvidas'
++      fullPath: '/duvidas'
++      preLoaderRoute: typeof DuvidasRouteImport
++      parentRoute: typeof rootRouteImport
++    }
++    '/metas': {
++      id: '/metas'
++      path: '/metas'
++      fullPath: '/metas'
++      preLoaderRoute: typeof MetasRouteImport
++      parentRoute: typeof rootRouteImport
++    }
++    '/nutrientes': {
++      id: '/nutrientes'
++      path: '/nutrientes'
++      fullPath: '/nutrientes'
++      preLoaderRoute: typeof NutrientesRouteImport
++      parentRoute: typeof rootRouteImport
++    }
+   }
+ }
+ 
+ const rootRouteChildren: RootRouteChildren = {
+   IndexRoute: IndexRoute,
++  CalculadoraRoute: CalculadoraRoute,
++  DuvidasRoute: DuvidasRoute,
++  MetasRoute: MetasRoute,
++  NutrientesRoute: NutrientesRoute,
+ }
+ export const routeTree = rootRouteImport
+   ._addFileChildren(rootRouteChildren)
+diff --git a/src/routes/__root.tsx b/src/routes/__root.tsx
+index 061f152..57d7958 100644
+--- a/src/routes/__root.tsx
++++ b/src/routes/__root.tsx
+@@ -10,6 +10,7 @@ import {
+ import { useEffect, type ReactNode } from "react";
+ 
+ import appCss from "../styles.css?url";
++import { SiteLayout } from "../components/SiteLayout";
+ import { reportLovableError } from "../lib/lovable-error-reporting";
+ 
+ function NotFoundComponent() {
+@@ -17,9 +18,7 @@ function NotFoundComponent() {
+     <div className="flex min-h-screen items-center justify-center bg-background px-4">
+       <div className="max-w-md text-center">
+         <h1 className="text-7xl font-bold text-foreground">404</h1>
+-        <h2 className="mt-4 text-xl font-semibold text-foreground">
+-          Página não encontrada
+-        </h2>
++        <h2 className="mt-4 text-xl font-semibold text-foreground">Página não encontrada</h2>
+         <p className="mt-2 text-sm text-muted-foreground">
+           A página que você procura não existe ou foi movida.
+         </p>
+@@ -74,49 +73,47 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
+   );
+ }
+ 
+-export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
+-  {
+-    head: () => ({
+-      meta: [
+-        { charSet: "utf-8" },
+-        { name: "viewport", content: "width=device-width, initial-scale=1" },
+-        { title: "NutriTech — Nutrição de Precisão" },
+-        {
+-          name: "description",
+-          content:
+-            "NutriTech: calculadora de macronutrientes com base na Tabela TACO. Descubra calorias, proteínas, carboidratos e gorduras dos seus alimentos em tempo real.",
+-        },
+-        { name: "author", content: "NutriTech" },
+-        { property: "og:title", content: "NutriTech — Nutrição de Precisão" },
+-        {
+-          property: "og:description",
+-          content:
+-            "Calculadora de macronutrientes com base na Tabela TACO. Resultados em tempo real.",
+-        },
+-        { property: "og:type", content: "website" },
+-        { name: "twitter:card", content: "summary_large_image" },
+-      ],
+-      links: [
+-        { rel: "stylesheet", href: appCss },
+-        { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+-        { rel: "preconnect", href: "https://fonts.googleapis.com" },
+-        {
+-          rel: "preconnect",
+-          href: "https://fonts.gstatic.com",
+-          crossOrigin: "anonymous",
+-        },
+-        {
+-          rel: "stylesheet",
+-          href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap",
+-        },
+-      ],
+-    }),
+-    shellComponent: RootShell,
+-    component: RootComponent,
+-    notFoundComponent: NotFoundComponent,
+-    errorComponent: ErrorComponent,
+-  },
+-);
++export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
++  head: () => ({
++    meta: [
++      { charSet: "utf-8" },
++      { name: "viewport", content: "width=device-width, initial-scale=1" },
++      { title: "NUTRIKAL — Nutrição de Precisão" },
++      {
++        name: "description",
++        content:
++          "NUTRIKAL: calculadora de macronutrientes com base na Tabela TACO. Descubra calorias, proteínas, carboidratos e gorduras dos seus alimentos em tempo real.",
++      },
++      { name: "author", content: "NUTRIKAL" },
++      { property: "og:title", content: "NUTRIKAL — Nutrição de Precisão" },
++      {
++        property: "og:description",
++        content:
++          "Calculadora de macronutrientes com base na Tabela TACO. Resultados em tempo real.",
++      },
++      { property: "og:type", content: "website" },
++      { name: "twitter:card", content: "summary_large_image" },
++    ],
++    links: [
++      { rel: "stylesheet", href: appCss },
++      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
++      { rel: "preconnect", href: "https://fonts.googleapis.com" },
++      {
++        rel: "preconnect",
++        href: "https://fonts.gstatic.com",
++        crossOrigin: "anonymous",
++      },
++      {
++        rel: "stylesheet",
++        href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap",
++      },
++    ],
++  }),
++  shellComponent: RootShell,
++  component: RootComponent,
++  notFoundComponent: NotFoundComponent,
++  errorComponent: ErrorComponent,
++});
+ 
+ function RootShell({ children }: { children: ReactNode }) {
+   return (
+@@ -138,7 +135,9 @@ function RootComponent() {
+   return (
+     <QueryClientProvider client={queryClient}>
+       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+-      <Outlet />
++      <SiteLayout>
++        <Outlet />
++      </SiteLayout>
+     </QueryClientProvider>
+   );
+ }
+diff --git a/src/routes/calculadora.tsx b/src/routes/calculadora.tsx
+new file mode 100644
+index 0000000..59f6e03
+--- /dev/null
++++ b/src/routes/calculadora.tsx
+@@ -0,0 +1,33 @@
++import { createFileRoute } from "@tanstack/react-router";
++import { Calculadora } from "@/components/Calculadora";
++import { NextStep, RevealOnScroll } from "@/components/PageParts";
++
++export const Route = createFileRoute("/calculadora")({
++  head: () => ({
++    meta: [
++      { title: "Calculadora de porções — NUTRIKAL" },
++      {
++        name: "description",
++        content:
++          "Calcule calorias e macros da porção exata em gramas, monte a dieta por refeição e exporte o relatório.",
++      },
++      { property: "og:title", content: "Calculadora de porções — NUTRIKAL" },
++    ],
++  }),
++  component: Page,
++});
++
++function Page() {
++  return (
++    <>
++      <RevealOnScroll />
++      <Calculadora />
++      <NextStep
++        to="/metas"
++        title="Defina sua meta diária"
++        text="Calcule seu gasto energético e acompanhe o progresso da dieta."
++        cta="Ir para metas"
++      />
++    </>
++  );
++}
+diff --git a/src/routes/duvidas.tsx b/src/routes/duvidas.tsx
+new file mode 100644
+index 0000000..b67f29c
+--- /dev/null
++++ b/src/routes/duvidas.tsx
+@@ -0,0 +1,32 @@
++import { createFileRoute } from "@tanstack/react-router";
++import { Faq } from "@/components/Faq";
++import { NextStep, RevealOnScroll } from "@/components/PageParts";
++
++export const Route = createFileRoute("/duvidas")({
++  head: () => ({
++    meta: [
++      { title: "Dúvidas frequentes — NUTRIKAL" },
++      {
++        name: "description",
++        content: "Respostas sobre a regra de três, pesos cru e cozido, trocas e dados salvos.",
++      },
++      { property: "og:title", content: "Dúvidas frequentes — NUTRIKAL" },
++    ],
++  }),
++  component: Page,
++});
++
++function Page() {
++  return (
++    <>
++      <RevealOnScroll />
++      <Faq />
++      <NextStep
++        to="/calculadora"
++        title="Pronto para começar?"
++        text="Informe o alimento e o peso prescrito."
++        cta="Abrir calculadora"
++      />
++    </>
++  );
++}
+diff --git a/src/routes/index.tsx b/src/routes/index.tsx
+index f675b3f..7cee2cb 100644
+--- a/src/routes/index.tsx
++++ b/src/routes/index.tsx
+@@ -1,23 +1,10 @@
+-import { createFileRoute } from "@tanstack/react-router";
+-import { useEffect, useMemo, useRef, useState } from "react";
+-import {
+-  Activity,
+-  Calculator,
+-  Droplets,
+-  Dumbbell,
+-  Flame,
+-  Leaf,
+-  Menu,
+-  Search,
+-  Wheat,
+-  X,
+-} from "lucide-react";
++import { createFileRoute, Link } from "@tanstack/react-router";
++import { Activity, ArrowRight, Calculator, CircleHelp, Target, Wheat } from "lucide-react";
++import { useEffect, useMemo, useState, type CSSProperties } from "react";
+ 
++import { RevealOnScroll } from "@/components/PageParts";
++import { useAnimatedValue } from "@/hooks/use-animated-value";
+ import { TACO_FOODS, type TacoFood } from "@/lib/taco-data";
+-import { Faq } from "@/components/Faq";
+-import { GoalProgress, GoalsAndWater } from "@/components/GoalsAndWater";
+-import { usePersistedState } from "@/hooks/use-persisted-state";
+-import { DEFAULT_SECTIONS, escapeHtml, hasNoMacroData } from "@/lib/diet-tools";
+ 
+ export const Route = createFileRoute("/")({
+   head: () => ({
+@@ -26,161 +13,55 @@ export const Route = createFileRoute("/")({
+       {
+         name: "description",
+         content:
+-          "Calcule calorias, proteínas, carboidratos e gorduras dos seus alimentos em tempo real com base na Tabela TACO. Nutrição de precisão para performance e saúde.",
++          "Calcule calorias, proteínas, carboidratos e gorduras da porção exata em gramas, com base na Tabela TACO.",
+       },
+       {
+         property: "og:title",
+         content: "NUTRIKAL — Calculadora de Macros com Tabela TACO",
+       },
+-      {
+-        property: "og:description",
+-        content:
+-          "Calcule calorias, proteínas, carboidratos e gorduras em tempo real com base na Tabela TACO.",
+-      },
+       { property: "og:type", content: "website" },
+-      { name: "twitter:card", content: "summary_large_image" },
+     ],
+   }),
+-  component: Index,
++  component: Home,
+ });
+ 
+-/* ------------------------------------------------------------------ */
+-/* Hook: anima transições numéricas (count-up suave entre valores)     */
+-/* ------------------------------------------------------------------ */
+-function useAnimatedValue(target: number, duration = 450): number {
+-  const [value, setValue] = useState(target);
+-  const previous = useRef(target);
+-
+-  useEffect(() => {
+-    const from = previous.current;
+-    if (from === target) return;
+-
+-    let raf = 0;
+-    const start = performance.now();
+-
+-    const tick = (now: number) => {
+-      const t = Math.min((now - start) / duration, 1);
+-      const eased = 1 - Math.pow(1 - t, 3); // easeOutCubic
+-      setValue(from + (target - from) * eased);
+-      if (t < 1) raf = requestAnimationFrame(tick);
+-    };
+-
+-    raf = requestAnimationFrame(tick);
+-    previous.current = target;
+-    return () => cancelAnimationFrame(raf);
+-  }, [target, duration]);
+-
+-  return value;
+-}
+-
+-/** Formata número no padrão pt-BR com 1 casa decimal no máximo. */
+-const formatNumber = (n: number): string =>
+-  n.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
+-
+-/** Normaliza texto para busca sem acentos nem case. */
+-const normalize = (s: string): string =>
+-  s
+-    .normalize("NFD")
+-    .replace(/[̀-ͯ]/g, "")
+-    .toLowerCase();
+-
+-const getApproxUnitGrams = (food: TacoFood): number => {
+-  const name = normalize(food.nome);
+-  const approximations: Array<[string[], number]> = [
+-    [["ovo"], 50],
+-    [["banana"], 90],
+-    [["maca"], 130],
+-    [["pera"], 140],
+-    [["laranja"], 150],
+-    [["tangerina", "mexerica"], 100],
+-    [["limao"], 60],
+-    [["tomate"], 100],
+-    [["cebola"], 100],
+-    [["cenoura"], 80],
+-    [["batata"], 150],
+-    [["pao"], 50],
+-  ];
+-
+-  return approximations.find(([terms]) => terms.some((term) => name.includes(term)))?.[1] ?? 100;
+-};
+-
+-/* ------------------------------------------------------------------ */
+-/* Header fixo com navegação suave                                     */
+-/* ------------------------------------------------------------------ */
+-function Header() {
+-  const [scrolled, setScrolled] = useState(false);
+-  const [menuOpen, setMenuOpen] = useState(false);
+-
+-  useEffect(() => {
+-    const onScroll = () => setScrolled(window.scrollY > 12);
+-    onScroll();
+-    window.addEventListener("scroll", onScroll, { passive: true });
+-    return () => window.removeEventListener("scroll", onScroll);
+-  }, []);
+-
+-  const links = [
+-    { href: "#inicio", label: "Início" },
+-    { href: "#calculadora", label: "Calculadora" },
+-    { href: "#metas", label: "Metas" },
+-    { href: "#nutrientes", label: "Nutrientes" },
+-    { href: "#duvidas", label: "Dúvidas" },
+-  ];
+-
+-  return (
+-    <header className={`site-header ${scrolled ? "is-scrolled" : ""}`}>
+-      <div className="container-x site-header__inner">
+-        <a href="#inicio" className="logo" aria-label="NUTRIKAL — início">
+-          <span className="logo__mark">
+-            <Leaf size={17} strokeWidth={2.5} />
+-          </span>
+-          <span className="logo__name">
+-            NUTRI<em>KAL</em>
+-          </span>
+-        </a>
+-
+-        <nav className="main-nav" aria-label="Navegação principal">
+-          {links.map((l) => (
+-            <a key={l.href} href={l.href} className="nav-link">
+-              {l.label}
+-            </a>
+-          ))}
+-        </nav>
+-
+-        <button
+-          className="menu-toggle"
+-          aria-label={menuOpen ? "Fechar menu" : "Abrir menu"}
+-          aria-expanded={menuOpen}
+-          onClick={() => setMenuOpen((v) => !v)}
+-        >
+-          {menuOpen ? <X size={20} /> : <Menu size={20} />}
+-        </button>
+-      </div>
++const fmt = (n: number, d = 1) =>
++  n.toLocaleString("pt-BR", { minimumFractionDigits: d, maximumFractionDigits: d });
+ 
+-      <nav
+-        className={`mobile-nav ${menuOpen ? "is-open" : ""}`}
+-        aria-label="Navegação móvel"
+-      >
+-        {links.map((l) => (
+-          <a
+-            key={l.href}
+-            href={l.href}
+-            className="nav-link"
+-            onClick={() => setMenuOpen(false)}
+-          >
+-            {l.label}
+-          </a>
+-        ))}
+-      </nav>
+-    </header>
+-  );
+-}
++const FEATURES = [
++  {
++    to: "/calculadora",
++    icon: Calculator,
++    title: "Calculadora de porções",
++    text: "Escolha o alimento, informe os gramas e monte a dieta por refeição, com relatório em PDF e Word.",
++  },
++  {
++    to: "/metas",
++    icon: Target,
++    title: "Metas e água",
++    text: "Calcule seu gasto energético, defina calorias e macros e acompanhe a hidratação do dia.",
++  },
++  {
++    to: "/nutrientes",
++    icon: Wheat,
++    title: "Guia dos nutrientes",
++    text: "Entenda o papel de proteínas, carboidratos e gorduras no seu objetivo.",
++  },
++  {
++    to: "/duvidas",
++    icon: CircleHelp,
++    title: "Dúvidas frequentes",
++    text: "Cru ou cozido? Posso trocar alimentos? Veja as respostas mais comuns.",
++  },
++] as const;
+ 
+-/* ------------------------------------------------------------------ */
+-/* Hero                                                                */
+-/* ------------------------------------------------------------------ */
+ function Hero() {
++  const [n, setN] = useState(0);
++  useEffect(() => setN(TACO_FOODS.length), []);
++  const count = useAnimatedValue(n, 1100);
++
+   return (
+-    <section id="inicio" className="hero">
++    <section className="hero">
+       <div className="container-x hero__grid">
+         <div>
+           <span className="eyebrow">
+@@ -188,26 +69,25 @@ function Hero() {
+             Tabela TACO · base oficial por 100 g
+           </span>
+           <h1 className="hero__title">
+-            Calcule os nutrientes da <span className="grad">porção exata</span>{" "}
+-            da dieta.
++            Calcule os nutrientes da <span className="grad">porção exata</span> da dieta.
+           </h1>
+           <p className="hero__lead">
+-            Informe o alimento e o peso prescrito: a regra de três sobre a TACO
+-            entrega calorias e macros na hora.
++            Informe o alimento e o peso prescrito: a regra de três sobre a TACO entrega calorias e
++            macros na hora.
+           </p>
+           <div className="hero__actions">
+-            <a href="#calculadora" className="btn btn-primary">
++            <Link to="/calculadora" className="btn btn-primary">
+               <Calculator size={17} />
+               Calcular agora
+-            </a>
+-            <a href="#metas" className="btn btn-ghost">
++            </Link>
++            <Link to="/metas" className="btn btn-ghost">
+               Definir minha meta
+-            </a>
++            </Link>
+           </div>
+         </div>
+         <div className="hero__stats">
+           <div className="hero__stat">
+-            <strong>{TACO_FOODS.length}</strong>
++            <strong>{Math.round(count)}</strong>
+             <span>alimentos da TACO</span>
+           </div>
+           <div className="hero__stat">
+@@ -224,59 +104,32 @@ function Hero() {
+   );
+ }
+ 
+-/* ------------------------------------------------------------------ */
+-/* Seção de informação — os 3 macronutrientes                          */
+-/* ------------------------------------------------------------------ */
+-const MACRO_CARDS = [
+-  {
+-    icon: Dumbbell,
+-    modifier: "macro-card--proteina",
+-    titulo: "Proteínas",
+-    descricao:
+-      "Os blocos de construção do corpo. Essenciais para síntese e reparo muscular, saciedade prolongada e manutenção da massa magra durante déficit calórico.",
+-    tag: "4 kcal por grama",
+-  },
+-  {
+-    icon: Wheat,
+-    modifier: "macro-card--carbo",
+-    titulo: "Carboidratos",
+-    descricao:
+-      "A principal fonte de energia do organismo. Abastecem o glicogênio muscular e o cérebro, sustentando treinos intensos e a performance cognitiva.",
+-    tag: "4 kcal por grama",
+-  },
+-  {
+-    icon: Droplets,
+-    modifier: "macro-card--gordura",
+-    titulo: "Gorduras",
+-    descricao:
+-      "Fundamentais para a produção hormonal, absorção de vitaminas lipossolúveis (A, D, E, K) e saúde celular. O equilíbrio certo sustenta o metabolismo.",
+-    tag: "9 kcal por grama",
+-  },
+-];
+-
+-function MacroInfo() {
++function Features() {
+   return (
+-    <section id="nutrientes" className="section">
++    <section className="section">
+       <div className="container-x">
+         <div className="section-head" data-reveal>
+-          <span className="eyebrow">Fundamentos</span>
+-          <h2>Os três pilares da sua dieta</h2>
+-          <p>
+-            Nenhum macronutriente é vilão ou herói isolado. O resultado vem do
+-            equilíbrio calculado entre eles, ajustado ao seu objetivo.
+-          </p>
++          <h2>Tudo o que você precisa em um só lugar</h2>
++          <p>Escolha por onde começar. Cada função tem a sua própria página.</p>
+         </div>
+-
+-        <div className="macro-grid">
+-          {MACRO_CARDS.map(({ icon: Icon, modifier, titulo, descricao, tag }) => (
+-            <article key={titulo} className={`macro-card glass ${modifier}`} data-reveal>
+-              <span className="macro-card__icon">
+-                <Icon size={22} />
++        <div className="feature-grid">
++          {FEATURES.map((f, i) => (
++            <Link
++              key={f.to}
++              to={f.to}
++              className="feature-card glass"
++              data-reveal
++              style={{ "--i": i } as CSSProperties}
++            >
++              <span className="feature-card__icon">
++                <f.icon size={20} />
+               </span>
+-              <h3>{titulo}</h3>
+-              <p>{descricao}</p>
+-              <span className="macro-card__tag">{tag}</span>
+-            </article>
++              <strong>{f.title}</strong>
++              <p>{f.text}</p>
++              <span className="feature-card__go">
++                Abrir <ArrowRight size={15} />
++              </span>
++            </Link>
+           ))}
+         </div>
+       </div>
+@@ -284,1005 +137,102 @@ function MacroInfo() {
+   );
+ }
+ 
+-/* ------------------------------------------------------------------ */
+-/* Calculadora de nutrientes — painel dashboard                        */
+-/* ------------------------------------------------------------------ */
+-
+-interface MacroTotals {
+-  kcal: number;
+-  carboidratos: number;
+-  proteinas: number;
+-  gorduras: number;
+-}
+-
+-type DietGoal = "emagrecimento" | "manutencao" | "ganho";
+-type PortionUnit = "g" | "u";
+-
+-interface MealSection {
+-  id: string;
+-  name: string;
+-}
+-
+-interface DietItem {
+-  id: string;
+-  sectionId: string;
+-  sectionName: string;
+-  quantidade: number;
+-  unidade: PortionUnit;
+-  nome: string;
+-  categoria: string;
+-  gramas: number;
+-  kcal: number;
+-  carboidratos: number;
+-  proteinas: number;
+-  gorduras: number;
+-}
+-
+-const GOAL_OPTIONS: Record<
+-  DietGoal,
+-  { label: string; description: string; emphasis: string }
+-> = {
+-  emagrecimento: {
+-    label: "Emagrecimento",
+-    description: "Prioriza déficit calórico com maior saciedade e controle de porções.",
+-    emphasis: "Deficit calórico orientado para perda de gordura.",
+-  },
+-  manutencao: {
+-    label: "Manutenção",
+-    description: "Mantém energia e performance com equilíbrio de macros e porções estáveis.",
+-    emphasis: "Equilíbrio para sustentar treino, energia e composição corporal.",
+-  },
+-  ganho: {
+-    label: "Ganho",
+-    description: "Aumenta a ingestão total com foco em reforço de massa e recuperação.",
+-    emphasis: "Superávit calórico com foco em performance e ganho de massa.",
+-  },
+-};
+-
+-/**
+- * Lógica de cálculo proporcional (regra de três):
+- *
+- * A Tabela TACO informa a composição nutricional por 100 g do alimento.
+- * Para uma gramagem qualquer `g`, cada nutriente é escalado linearmente:
+- *
+- *   nutrienteNaPorcao = (valorPor100g × g) / 100
+- *
+- * Ex.: 250 g de peito de frango (32 g de proteína/100 g)
+- *      => (32 × 250) / 100 = 80 g de proteína.
+- */
+-const calcularMacros = (food: TacoFood | null, gramas: number): MacroTotals => {
+-  if (!food || gramas <= 0)
+-    return { kcal: 0, carboidratos: 0, proteinas: 0, gorduras: 0 };
+-
+-  const { por100g } = food;
+-  const fator = gramas / 100; // fator proporcional da regra de três
+-
+-  return {
+-    kcal: por100g.kcal * fator,
+-    carboidratos: por100g.carboidratos * fator,
+-    proteinas: por100g.proteinas * fator,
+-    gorduras: por100g.gorduras * fator,
+-  };
+-};
+-
+-function ResultCard({
+-  modifier,
+-  icon: Icon,
+-  label,
+-  value,
+-  unit,
+-}: {
+-  modifier: string;
+-  icon: typeof Flame;
+-  label: string;
+-  value: number;
+-  unit: string;
+-}) {
+-  const animated = useAnimatedValue(value);
++/* Demonstração interativa da regra de três (62 g de banana-prata por padrão) */
++function RuleOfThree() {
++  const food = useMemo(
++    () => TACO_FOODS.find((f) => f.nome.startsWith("Banana, prata")) ?? (TACO_FOODS[0] as TacoFood),
++    [],
++  );
++  const [g, setG] = useState(62);
++  const m = food.por100g;
++  const kcal = useAnimatedValue((m.kcal * g) / 100, 300);
+ 
+   return (
+-    <div className={`result-card glass ${modifier}`}>
+-      <span className="result-card__label">
+-        <Icon size={15} />
+-        {label}
+-      </span>
+-      <div className="result-card__value">
+-        {formatNumber(animated)}
+-        <span className="result-card__unit">{unit}</span>
++    <div className="demo glass" data-reveal>
++      <strong className="demo__food">{food.nome}</strong>
++      <label className="demo__slider">
++        <span>Peso da porção</span>
++        <b>{g} g</b>
++        <input
++          type="range"
++          min={10}
++          max={300}
++          value={g}
++          onChange={(e) => setG(Number(e.target.value))}
++          aria-label="Peso da porção em gramas"
++        />
++      </label>
++      <p className="demo__formula">
++        {fmt(m.kcal, 2)} kcal ÷ 100 g × {g} g = <b>{fmt(kcal, 2)} kcal</b>
++      </p>
++      <div className="demo__chips">
++        <span style={{ "--c": "var(--macro-proteina)" } as CSSProperties}>
++          Proteínas <b>{fmt((m.proteinas * g) / 100)} g</b>
++        </span>
++        <span style={{ "--c": "var(--macro-carbo)" } as CSSProperties}>
++          Carboidratos <b>{fmt((m.carboidratos * g) / 100)} g</b>
++        </span>
++        <span style={{ "--c": "var(--macro-gordura)" } as CSSProperties}>
++          Gorduras <b>{fmt((m.gorduras * g) / 100)} g</b>
++        </span>
+       </div>
+     </div>
+   );
+ }
+ 
+-function Calculadora() {
+-  const [query, setQuery] = useState("");
+-  const [selected, setSelected] = useState<TacoFood | null>(
+-    TACO_FOODS[0] ?? null,
+-  );
+-  const [quantidade, setQuantidade] = useState("100");
+-  const [unidade, setUnidade] = useState<PortionUnit>("g");
+-  const [comboOpen, setComboOpen] = useState(false);
+-  const [categoria, setCategoria] = useState("Todos");
+-  const [diet, setDiet] = usePersistedState<DietItem[]>("nutrikal:diet", []);
+-  const [dietGoal, setDietGoal] = usePersistedState<DietGoal>("nutrikal:objective", "manutencao");
+-  const [mealSections, setMealSections] = usePersistedState<MealSection[]>(
+-    "nutrikal:sections",
+-    DEFAULT_SECTIONS,
+-  );
+-  const [selectedSectionId, setSelectedSectionId] = useState("");
+-  const [newSectionName, setNewSectionName] = useState("");
+-  const [patientName, setPatientName] = usePersistedState("nutrikal:patient", "Paciente");
+-  const [reportDate, setReportDate] = useState(() =>
+-    new Date().toISOString().slice(0, 10),
+-  );
+-
+-  /* Mantém a seção selecionada válida (seções salvas, remoções, primeira carga). */
+-  useEffect(() => {
+-    if (!mealSections.some((s) => s.id === selectedSectionId))
+-      setSelectedSectionId(mealSections[0]?.id ?? "");
+-  }, [mealSections, selectedSectionId]);
+-
+-  const categorias = useMemo(
+-    () =>
+-      ["Todos", ...new Set(TACO_FOODS.map((food) => food.categoria))].sort((a, b) =>
+-        a.localeCompare(b, "pt-BR"),
+-      ),
+-    [],
+-  );
+-
+-  /* Filtra a TACO pelo texto digitado e pela categoria selecionada. */
+-  const filtered = useMemo(() => {
+-    /* Busca por palavras: "banana prata" encontra "Banana, prata, crua". */
+-    const tokens = normalize(query).split(/[\s,]+/).filter(Boolean);
+-    return [...TACO_FOODS]
+-      .filter((f) => {
+-        const nome = normalize(f.nome);
+-        return tokens.every((t) => nome.includes(t));
+-      })
+-      .filter((f) => categoria === "Todos" || f.categoria === categoria)
+-      .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+-  }, [query, categoria]);
+-
+-  const groupedFoods = useMemo(() => {
+-    const groups = new Map<string, TacoFood[]>();
+-    for (const food of filtered) {
+-      const key = food.categoria;
+-      const current = groups.get(key) ?? [];
+-      current.push(food);
+-      groups.set(key, current);
+-    }
+-    return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b, "pt-BR"));
+-  }, [filtered]);
+-
+-  const dietaTotal = useMemo(
+-    () =>
+-      diet.reduce(
+-        (sum, item) => ({
+-          kcal: sum.kcal + item.kcal,
+-          carboidratos: sum.carboidratos + item.carboidratos,
+-          proteinas: sum.proteinas + item.proteinas,
+-          gorduras: sum.gorduras + item.gorduras,
+-        }),
+-        { kcal: 0, carboidratos: 0, proteinas: 0, gorduras: 0 },
+-      ),
+-    [diet],
+-  );
+-
+-  const addFoodToDiet = () => {
+-    if (!selected || !selectedSectionId) return;
+-
+-    const section = mealSections.find((item) => item.id === selectedSectionId);
+-    if (!section) return;
+-
+-    const quantity = parseFloat(quantidade.replace(",", ".")) || 0;
+-    if (quantity <= 0) return;
+-
+-    const grams = unidade === "g" ? quantity : quantity * getApproxUnitGrams(selected);
+-
+-    const factor = grams / 100;
+-    const item: DietItem = {
+-      id: selected.id,
+-      sectionId: section.id,
+-      sectionName: section.name,
+-      quantidade: quantity,
+-      unidade,
+-      nome: selected.nome,
+-      categoria: selected.categoria,
+-      gramas: grams,
+-      kcal: selected.por100g.kcal * factor,
+-      carboidratos: selected.por100g.carboidratos * factor,
+-      proteinas: selected.por100g.proteinas * factor,
+-      gorduras: selected.por100g.gorduras * factor,
+-    };
+-
+-    setDiet((prev) => {
+-      const existing = prev.find(
+-        (entry) => entry.id === selected.id && entry.sectionId === section.id,
+-      );
+-      if (!existing) return [...prev, item];
+-
+-      return prev.map((entry) =>
+-        entry.id === selected.id && entry.sectionId === section.id
+-          ? {
+-              ...entry,
+-              quantidade: entry.quantidade + quantity,
+-              gramas: entry.gramas + grams,
+-              kcal: entry.kcal + item.kcal,
+-              carboidratos: entry.carboidratos + item.carboidratos,
+-              proteinas: entry.proteinas + item.proteinas,
+-              gorduras: entry.gorduras + item.gorduras,
+-            }
+-          : entry,
+-      );
+-    });
+-  };
+-
+-  const removeFromDiet = (id: string, sectionId: string) => {
+-    setDiet((prev) =>
+-      prev.filter((item) => item.id !== id || item.sectionId !== sectionId),
+-    );
+-  };
+-
+-  const addMealSection = () => {
+-    const name = newSectionName.trim();
+-    if (!name) return;
+-
+-    const section: MealSection = {
+-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+-      name,
+-    };
+-    setMealSections((prev) => [...prev, section]);
+-    setSelectedSectionId(section.id);
+-    setNewSectionName("");
+-  };
+-
+-  const exportDiet = (format: "pdf" | "doc") => {
+-    if (diet.length === 0) return;
+-
+-    const safePatientName = patientName.trim() || "Paciente";
+-    const reportDateLabel = reportDate
+-      ? new Date(`${reportDate}T12:00:00`).toLocaleDateString("pt-BR", {
+-          day: "2-digit",
+-          month: "2-digit",
+-          year: "numeric",
+-        })
+-      : new Date().toLocaleDateString("pt-BR", {
+-          day: "2-digit",
+-          month: "2-digit",
+-          year: "numeric",
+-        });
+-    const goalLabel = GOAL_OPTIONS[dietGoal].label;
+-    const confirmed = window.confirm(
+-      format === "pdf"
+-        ? `O relatório de ${safePatientName} para ${goalLabel.toLowerCase()} está pronto para exportar em PDF?`
+-        : `O relatório de ${safePatientName} para ${goalLabel.toLowerCase()} está pronto para exportar em Word?`,
+-    );
+-
+-    if (!confirmed) return;
+-
+-    const rows = mealSections
+-      .map((section) => {
+-        const sectionItems = diet.filter((item) => item.sectionId === section.id);
+-        if (sectionItems.length === 0) return "";
+-
+-        return `
+-          <tr class="section-row">
+-            <td colspan="6">${escapeHtml(section.name)}</td>
+-          </tr>
+-          ${sectionItems
+-            .map(
+-              (item) => `
+-          <tr>
+-            <td>${escapeHtml(item.nome)}</td>
+-            <td>${formatNumber(item.quantidade)} ${item.unidade} <small>(${formatNumber(item.gramas)} g)</small></td>
+-            <td>${formatNumber(item.kcal)} kcal</td>
+-            <td>${formatNumber(item.proteinas)} g</td>
+-            <td>${formatNumber(item.carboidratos)} g</td>
+-            <td>${formatNumber(item.gorduras)} g</td>
+-          </tr>`,
+-            )
+-            .join("")}`;
+-          })
+-      .join("");
+-
+-    const html = `
+-      <html>
+-        <head>
+-          <meta charset="utf-8" />
+-          <title>NUTRIKAL — Plano alimentar</title>
+-          <style>
+-            :root {
+-              --pink: #e7a6b0;
+-              --pink-strong: #c56b74;
+-              --brown: #5d3b35;
+-              --cream: #fff8f7;
+-              --line: #ebd5d9;
+-              --text: #3f2c2a;
+-              --muted: #7a5d5d;
+-            }
+-
+-            * { box-sizing: border-box; }
+-            body {
+-              margin: 0;
+-              padding: 32px;
+-              font-family: Arial, sans-serif;
+-              color: var(--text);
+-              background: var(--cream);
+-            }
+-            .report {
+-              max-width: 980px;
+-              margin: 0 auto;
+-              background: #fff;
+-              border: 1px solid var(--line);
+-              border-radius: 18px;
+-              overflow: hidden;
+-              box-shadow: 0 14px 40px rgba(93, 59, 53, 0.08);
+-            }
+-            .header {
+-              display: flex;
+-              align-items: center;
+-              justify-content: space-between;
+-              padding: 24px 30px;
+-              background: linear-gradient(135deg, #fbe9ed 0%, #f5dfe3 100%);
+-              border-bottom: 1px solid var(--line);
+-            }
+-            .brand {
+-              display: flex;
+-              align-items: center;
+-              gap: 10px;
+-              font-size: 22px;
+-              font-weight: 700;
+-              letter-spacing: 0.05em;
+-              color: var(--brown);
+-            }
+-            .brand-mark {
+-              width: 28px;
+-              height: 28px;
+-              border-radius: 8px;
+-              display: inline-flex;
+-              align-items: center;
+-              justify-content: center;
+-              background: linear-gradient(135deg, var(--pink) 0%, var(--pink-strong) 100%);
+-              color: white;
+-              font-weight: 700;
+-            }
+-            .header small {
+-              color: var(--muted);
+-              font-size: 12px;
+-              letter-spacing: 0.08em;
+-              text-transform: uppercase;
+-            }
+-            .content {
+-              padding: 28px 30px 32px;
+-            }
+-            .summary-bar {
+-              display: grid;
+-              grid-template-columns: repeat(4, minmax(140px, 1fr));
+-              gap: 12px;
+-              margin-bottom: 22px;
+-            }
+-            .kpi {
+-              background: #fff9f9;
+-              border: 1px solid var(--line);
+-              border-radius: 12px;
+-              padding: 14px 16px;
+-            }
+-            .kpi-label {
+-              display: block;
+-              font-size: 11px;
+-              letter-spacing: 0.1em;
+-              text-transform: uppercase;
+-              color: var(--muted);
+-              margin-bottom: 6px;
+-            }
+-            .kpi-value {
+-              font-size: 22px;
+-              font-weight: 700;
+-              color: var(--brown);
+-            }
+-            .goal {
+-              margin-bottom: 20px;
+-              padding: 14px 16px;
+-              border-left: 4px solid var(--pink-strong);
+-              background: #fff6f7;
+-              border-radius: 10px;
+-              color: var(--brown);
+-              font-weight: 600;
+-            }
+-            .goal span { color: var(--muted); font-weight: 500; }
+-            .patient-meta {
+-              display: flex;
+-              gap: 18px;
+-              flex-wrap: wrap;
+-              padding: 14px 16px;
+-              background: #ffffff;
+-              border: 1px solid var(--line);
+-              border-radius: 10px;
+-              margin-bottom: 18px;
+-              color: var(--brown);
+-              font-weight: 600;
+-            }
+-            .patient-meta span {
+-              color: var(--muted);
+-              font-weight: 500;
+-            }
+-            table {
+-              width: 100%;
+-              border-collapse: collapse;
+-              margin-top: 12px;
+-              font-size: 14px;
+-            }
+-            th, td {
+-              border: 1px solid var(--line);
+-              padding: 11px 10px;
+-              text-align: left;
+-            }
+-            th {
+-              background: #f8edf0;
+-              color: var(--brown);
+-              font-weight: 700;
+-            }
+-            .section-row td {
+-              padding: 13px 10px 8px;
+-              border: none;
+-              border-bottom: 2px solid var(--pink);
+-              background: #fff;
+-              color: var(--pink-strong);
+-              font-size: 12px;
+-              font-weight: 700;
+-              letter-spacing: 0.1em;
+-              text-transform: uppercase;
+-            }
+-            tbody tr:nth-child(even) { background: #fffaf9; }
+-            .footer-note {
+-              margin-top: 18px;
+-              font-size: 12px;
+-              color: var(--muted);
+-            }
+-          </style>
+-        </head>
+-        <body>
+-          <div class="report">
+-            <div class="header">
+-              <div class="brand">
+-                <span class="brand-mark">N</span>
+-                NUTRIKAL
+-              </div>
+-              <small>Plano alimentar · ${goalLabel}</small>
+-            </div>
+-
+-            <div class="content">
+-              <div class="summary-bar">
+-                <div class="kpi">
+-                  <span class="kpi-label">Calorias</span>
+-                  <span class="kpi-value">${formatNumber(dietaTotal.kcal)} kcal</span>
+-                </div>
+-                <div class="kpi">
+-                  <span class="kpi-label">Proteína</span>
+-                  <span class="kpi-value">${formatNumber(dietaTotal.proteinas)} g</span>
+-                </div>
+-                <div class="kpi">
+-                  <span class="kpi-label">Carboidratos</span>
+-                  <span class="kpi-value">${formatNumber(dietaTotal.carboidratos)} g</span>
+-                </div>
+-                <div class="kpi">
+-                  <span class="kpi-label">Gorduras</span>
+-                  <span class="kpi-value">${formatNumber(dietaTotal.gorduras)} g</span>
+-                </div>
+-              </div>
+-
+-              <div class="patient-meta">
+-                <div>Paciente: <strong>${escapeHtml(safePatientName)}</strong></div>
+-                <div>Data: <span>${reportDateLabel}</span></div>
+-              </div>
+-
+-              <div class="goal">
+-                Objetivo: ${goalLabel} <span>· ${GOAL_OPTIONS[dietGoal].emphasis}</span>
+-              </div>
+-
+-              <table>
+-                <thead>
+-                  <tr>
+-                    <th>Alimento</th>
+-                    <th>Quantidade</th>
+-                    <th>Calorias</th>
+-                    <th>Proteína</th>
+-                    <th>Carboidratos</th>
+-                    <th>Gorduras</th>
+-                  </tr>
+-                </thead>
+-                <tbody>${rows}</tbody>
+-              </table>
+-
+-              <div class="footer-note">
+-                Documento gerado pela calculadora NUTRIKAL com base na Tabela TACO.
+-                Quantidades em unidades usam peso médio aproximado por alimento e devem ser conferidas quando necessário.
+-              </div>
+-            </div>
+-          </div>
+-        </body>
+-      </html>
+-    `;
+-
+-    if (format === "pdf") {
+-      const printWindow = window.open("", "_blank", "width=1100,height=900");
+-      if (!printWindow) return;
+-      printWindow.document.write(html);
+-      printWindow.document.close();
+-      printWindow.focus();
+-      printWindow.print();
+-      return;
+-    }
+-
+-    const blob = new Blob([html], {
+-      type: "application/vnd.ms-word; charset=utf-8",
+-    });
+-    const url = URL.createObjectURL(blob);
+-    const anchor = document.createElement("a");
+-    anchor.href = url;
+-    anchor.download = `nutrikal-dieta-${dietGoal}.doc`;
+-    anchor.click();
+-    URL.revokeObjectURL(url);
+-  };
+-
+-  /* Recalcula em tempo real a cada input de alimento ou gramagem. */
+-  const quantidadeNum = parseFloat(quantidade.replace(",", ".")) || 0;
+-  const gramasNum =
+-    unidade === "g"
+-      ? quantidadeNum
+-      : quantidadeNum * (selected ? getApproxUnitGrams(selected) : 100);
+-  const totals = useMemo(
+-    () => calcularMacros(selected, gramasNum),
+-    [selected, gramasNum],
+-  );
+-
+-  /* Distribuição calórica: proteína/carbo = 4 kcal/g, gordura = 9 kcal/g. */
+-  const kcalProt = totals.proteinas * 4;
+-  const kcalCarb = totals.carboidratos * 4;
+-  const kcalGord = totals.gorduras * 9;
+-  const kcalTotal = kcalProt + kcalCarb + kcalGord;
+-  const pct = (v: number) => (kcalTotal > 0 ? (v / kcalTotal) * 100 : 0);
+-
+-  const selectFood = (food: TacoFood) => {
+-    setSelected(food);
+-    setQuery("");
+-    setComboOpen(false);
+-  };
+-
+-  const renderGroup = (label: string, items: TacoFood[]) =>
+-    items.length > 0 && (
+-      <div key={label}>
+-        <div className="combo__group">{label}</div>
+-        {items.map((food) => (
+-          <button
+-            key={food.id}
+-            type="button"
+-            className={`combo__item ${selected?.id === food.id ? "is-active" : ""}`}
+-            /* onMouseDown + preventDefault: seleciona antes do blur fechar a lista */
+-            onMouseDown={(e) => {
+-              e.preventDefault();
+-              selectFood(food);
+-            }}
+-          >
+-            {food.nome}
+-            <small>{food.por100g.kcal} kcal/100g</small>
+-          </button>
+-        ))}
+-      </div>
+-    );
+-
++function HowItWorks() {
++  const steps = [
++    ["Escolha o alimento", "Busque na Tabela TACO pelo nome, como “banana prata”."],
++    ["Informe o peso", "Use os gramas prescritos, não os 100 g da tabela."],
++    ["Veja a porção", "O app aplica a regra de três e mostra calorias e macros."],
++  ];
+   return (
+-    <section id="calculadora" className="section calc">
++    <section className="section">
+       <div className="container-x">
+         <div className="section-head" data-reveal>
+-          <span className="eyebrow">
+-            <Calculator size={14} />
+-            Calculadora de Nutrientes
+-          </span>
+-          <h2>Sua porção, calculada ao grama</h2>
+-          <p>
+-            Escolha um alimento da Tabela TACO, informe a gramagem e veja os
+-            macronutrientes atualizarem em tempo real.
+-          </p>
++          <h2>Como funciona</h2>
++          <p>Arraste o controle e veja a regra de três em ação.</p>
+         </div>
+-
+-        <div className="calc__panel glass" data-reveal>
+-          {/* ---------- Inputs ---------- */}
+-          <div className="calc__form">
+-            <div className="field">
+-              <label htmlFor="food-search">Alimento</label>
+-              <div className="combo">
+-                <Search size={17} className="combo__icon" />
+-                <input
+-                  id="food-search"
+-                  className="input"
+-                  type="text"
+-                  placeholder={
+-                    selected ? selected.nome : "Busque um alimento…"
+-                  }
+-                  value={comboOpen || query ? query : (selected?.nome ?? "")}
+-                  autoComplete="off"
+-                  onFocus={() => setComboOpen(true)}
+-                  onBlur={() => setComboOpen(false)}
+-                  onChange={(e) => {
+-                    setQuery(e.target.value);
+-                    setComboOpen(true);
+-                  }}
+-                />
+-                {comboOpen && (
+-                  <div className="combo__list" role="listbox">
+-                    {filtered.length === 0 && (
+-                      <div className="combo__empty">
+-                        Nenhum alimento encontrado para “{query}”.
+-                      </div>
+-                    )}
+-                    {groupedFoods.map(([label, items]) => renderGroup(label, items))}
+-                  </div>
+-                )}
+-              </div>
+-              {selected && (
+-                <p className="field-hint">
+-                  Base: {selected.por100g.kcal} kcal ·{" "}
+-                  {formatNumber(selected.por100g.proteinas)} g prot ·{" "}
+-                  {formatNumber(selected.por100g.carboidratos)} g carb ·{" "}
+-                  {formatNumber(selected.por100g.gorduras)} g gord — por 100 g
+-                </p>
+-              )}
+-            </div>
+-
+-            <div className="field">
+-              <label htmlFor="category-filter">Categoria</label>
+-              <select
+-                id="category-filter"
+-                className="input"
+-                value={categoria}
+-                onChange={(e) => setCategoria(e.target.value)}
+-              >
+-                {categorias.map((option) => (
+-                  <option key={option} value={option}>
+-                    {option}
+-                  </option>
+-                ))}
+-              </select>
+-              <p className="field-hint">
+-                Explore a base completa da TACO por categoria e encontre o alimento certo.
+-              </p>
+-            </div>
+-
+-            <div className="field">
+-              <label htmlFor="diet-goal">Objetivo da dieta</label>
+-              <div className="goal-selector" id="diet-goal">
+-                {(Object.keys(GOAL_OPTIONS) as DietGoal[]).map((goal) => (
+-                  <button
+-                    key={goal}
+-                    type="button"
+-                    className={`goal-option ${dietGoal === goal ? "is-selected" : ""}`}
+-                    onClick={() => setDietGoal(goal)}
+-                  >
+-                    {GOAL_OPTIONS[goal].label}
+-                  </button>
+-                ))}
+-              </div>
+-              <p className="field-hint">{GOAL_OPTIONS[dietGoal].description}</p>
+-            </div>
+-
+-            <div className="field">
+-              <label htmlFor="quantity">Quantidade</label>
+-              <div className="portion-input">
+-                <input
+-                  id="quantity"
+-                  className="input"
+-                  type="number"
+-                  min="0"
+-                  step="1"
+-                  inputMode="decimal"
+-                  placeholder={unidade === "g" ? "Ex.: 150" : "Ex.: 2"}
+-                  value={quantidade}
+-                  onChange={(e) => setQuantidade(e.target.value)}
+-                />
+-                <select
+-                  id="portion-unit"
+-                  className="input portion-unit"
+-                  aria-label="Unidade da quantidade"
+-                  value={unidade}
+-                  onChange={(e) => setUnidade(e.target.value as PortionUnit)}
+-                >
+-                  <option value="g">gramas (g)</option>
+-                  <option value="u">unidades (u)</option>
+-                </select>
+-              </div>
+-              <p className="field-hint">
+-                {unidade === "g"
+-                  ? "O cálculo aplica regra de três sobre a base oficial de 100 g."
+-                  : `Estimativa: 1 unidade de ${selected?.nome ?? "alimento"} ≈ ${selected ? getApproxUnitGrams(selected) : 100} g.`}
+-              </p>
+-              {selected && hasNoMacroData(selected) && (
+-                <p className="field-hint" role="alert">
+-                  Atenção: este item está sem valores na base importada da TACO. Confirme na tabela oficial antes de usar.
+-                </p>
+-              )}
+-            </div>
+-
+-            <div className="field">
+-              <label htmlFor="meal-section">Seção da refeição</label>
+-              {mealSections.length > 0 ? (
+-                <select
+-                  id="meal-section"
+-                  className="input"
+-                  value={selectedSectionId}
+-                  onChange={(e) => setSelectedSectionId(e.target.value)}
+-                >
+-                  <option value="">Escolha uma seção</option>
+-                  {mealSections.map((section) => (
+-                    <option key={section.id} value={section.id}>
+-                      {section.name}
+-                    </option>
+-                  ))}
+-                </select>
+-              ) : (
+-                <p className="field-hint field-hint--alert">
+-                  Crie uma seção abaixo antes de adicionar alimentos.
+-                </p>
+-              )}
+-              <p className="field-hint">
+-                O alimento será incluído na seção escolhida da sua dieta.
+-              </p>
+-            </div>
+-
+-            <div className="field">
+-              <label htmlFor="new-meal-section">Criar nova seção</label>
+-              <div className="section-create">
+-                <input
+-                  id="new-meal-section"
+-                  className="input"
+-                  type="text"
+-                  value={newSectionName}
+-                  onChange={(e) => setNewSectionName(e.target.value)}
+-                  onKeyDown={(e) => {
+-                    if (e.key === "Enter") addMealSection();
+-                  }}
+-                  placeholder="Ex.: Pré-treino"
+-                />
+-                <button type="button" className="btn btn-ghost" onClick={addMealSection}>
+-                  Adicionar seção
+-                </button>
+-              </div>
+-            </div>
+-
+-            <div className="diet-actions">
+-              <button
+-                type="button"
+-                className="btn btn-primary"
+-                onClick={addFoodToDiet}
+-                disabled={!selected || !selectedSectionId}
+-              >
+-                Adicionar alimento
+-              </button>
+-            </div>
+-          </div>
+-
+-          {/* ---------- Outputs ---------- */}
+-          <div className="calc__results" aria-live="polite">
+-            <ResultCard
+-              modifier="result-card--kcal"
+-              icon={Flame}
+-              label="Calorias"
+-              value={totals.kcal}
+-              unit="kcal"
+-            />
+-            <ResultCard
+-              modifier="result-card--proteina"
+-              icon={Dumbbell}
+-              label="Proteínas"
+-              value={totals.proteinas}
+-              unit="g"
+-            />
+-            <ResultCard
+-              modifier="result-card--carbo"
+-              icon={Wheat}
+-              label="Carboidratos"
+-              value={totals.carboidratos}
+-              unit="g"
+-            />
+-            <ResultCard
+-              modifier="result-card--gordura"
+-              icon={Droplets}
+-              label="Gorduras"
+-              value={totals.gorduras}
+-              unit="g"
+-            />
+-
+-            {/* Distribuição calórica dos macros */}
+-            <div className="macro-split glass">
+-              <div className="macro-split__header">
+-                <span>Distribuição calórica</span>
+-                <span>
+-                  {selected
+-                    ? `${selected.nome} · ${quantidadeNum || 0} ${unidade}`
+-                    : "—"}
+-                </span>
+-              </div>
+-              <div className="macro-split__track">
+-                <div
+-                  className="macro-split__seg macro-split__seg--proteina"
+-                  style={{ width: `${pct(kcalProt)}%` }}
+-                />
+-                <div
+-                  className="macro-split__seg macro-split__seg--carbo"
+-                  style={{ width: `${pct(kcalCarb)}%` }}
+-                />
+-                <div
+-                  className="macro-split__seg macro-split__seg--gordura"
+-                  style={{ width: `${pct(kcalGord)}%` }}
+-                />
+-              </div>
+-              <div className="macro-split__legend">
+-                <span>
+-                  <i className="legend-dot--proteina" />
+-                  Proteína {formatNumber(pct(kcalProt))}%
+-                </span>
+-                <span>
+-                  <i className="legend-dot--carbo" />
+-                  Carbo {formatNumber(pct(kcalCarb))}%
+-                </span>
+-                <span>
+-                  <i className="legend-dot--gordura" />
+-                  Gordura {formatNumber(pct(kcalGord))}%
+-                </span>
+-              </div>
+-            </div>
+-          </div>
+-
+-          <div className="diet-panel glass" data-reveal>
+-            <div className="diet-panel__header">
+-              <div>
+-                <span className="eyebrow">Dieta montada</span>
+-                <h3>Minha refeição</h3>
+-              </div>
+-              <div className="diet-panel__summary">
+-                {formatNumber(dietaTotal.kcal)} kcal
+-              </div>
+-            </div>
+-
+-            {diet.length === 0 ? (
+-              <p className="diet-empty">
+-                Nenhum alimento adicionado ainda. Escolha um alimento e clique em
+-                “Adicionar alimento”.
+-              </p>
+-            ) : (
+-              <div className="diet-sections">
+-                <GoalProgress total={dietaTotal} />
+-                {mealSections.map((section) => {
+-                  const sectionItems = diet.filter((item) => item.sectionId === section.id);
+-                  if (sectionItems.length === 0) return null;
+-
+-                  return (
+-                    <section key={section.id} className="diet-section">
+-                      <h4>{section.name}</h4>
+-                      <ul className="diet-list">
+-                        {sectionItems.map((item) => (
+-                          <li key={`${item.sectionId}-${item.id}`} className="diet-item">
+-                            <div>
+-                              <strong>{item.nome}</strong>
+-                              <span>
+-                                {formatNumber(item.quantidade)} {item.unidade} · {formatNumber(item.kcal)} kcal
+-                              </span>
+-                            </div>
+-                            <button
+-                              type="button"
+-                              onClick={() => removeFromDiet(item.id, item.sectionId)}
+-                            >
+-                              Remover
+-                            </button>
+-                          </li>
+-                        ))}
+-                      </ul>
+-                    </section>
+-                  );
+-                })}
+-              </div>
+-            )}
+-
+-            <div className="diet-panel__meta">
+-              <span>Objetivo: {GOAL_OPTIONS[dietGoal].label}</span>
+-              <span>Paciente: {patientName.trim() || "Paciente"}</span>
+-              <span>Proteína: {formatNumber(dietaTotal.proteinas)} g</span>
+-              <span>Carboidratos: {formatNumber(dietaTotal.carboidratos)} g</span>
+-              <span>Gorduras: {formatNumber(dietaTotal.gorduras)} g</span>
+-            </div>
+-
+-            <div className="diet-report-fields">
+-              <div className="field">
+-                <label htmlFor="patient-name">Nome do paciente</label>
+-                <input
+-                  id="patient-name"
+-                  className="input"
+-                  type="text"
+-                  value={patientName}
+-                  onChange={(e) => setPatientName(e.target.value)}
+-                  placeholder="Ex.: Maria Souza"
+-                />
+-              </div>
+-
+-              <div className="field">
+-                <label htmlFor="report-date">Data do relatório</label>
+-                <input
+-                  id="report-date"
+-                  className="input"
+-                  type="date"
+-                  value={reportDate}
+-                  onChange={(e) => setReportDate(e.target.value)}
+-                />
+-              </div>
+-            </div>
+-
+-            <div className="diet-export-actions">
+-              <button type="button" className="btn btn-primary" onClick={() => exportDiet("pdf")}>
+-                A dieta está pronta? Exportar PDF
+-              </button>
+-              <button type="button" className="btn btn-ghost" onClick={() => exportDiet("doc")}>
+-                Exportar Word
+-              </button>
+-            </div>
+-          </div>
++        <div className="how">
++          <ol className="steps">
++            {steps.map(([t, d], i) => (
++              <li key={t} data-reveal style={{ "--i": i } as CSSProperties}>
++                <span className="steps__n">{i + 1}</span>
++                <div>
++                  <strong>{t}</strong>
++                  <p>{d}</p>
++                </div>
++              </li>
++            ))}
++          </ol>
++          <RuleOfThree />
+         </div>
+-
+-        <p className="calc__footnote" data-reveal>
+-          Valores aproximados por 100 g conforme a Tabela TACO (4ª edição,
+-          UNICAMP). Suplementos incluídos apenas para demonstração.
+-        </p>
+       </div>
+     </section>
+   );
+ }
+ 
+-/* ------------------------------------------------------------------ */
+-/* Página                                                              */
+-/* ------------------------------------------------------------------ */
+-function Index() {
+-  /* Reveal on scroll: IntersectionObserver adiciona .is-visible */
+-  useEffect(() => {
+-    const els = document.querySelectorAll("[data-reveal]");
+-    const observer = new IntersectionObserver(
+-      (entries) => {
+-        for (const entry of entries) {
+-          if (entry.isIntersecting) {
+-            entry.target.classList.add("is-visible");
+-            observer.unobserve(entry.target);
+-          }
+-        }
+-      },
+-      { threshold: 0.12 },
+-    );
+-    els.forEach((el) => observer.observe(el));
+-    return () => observer.disconnect();
+-  }, []);
+-
++function Home() {
+   return (
+     <>
+-      <Header />
+-      <main>
+-        <Hero />
+-        <Calculadora />
+-        <GoalsAndWater />
+-        <MacroInfo />
+-        <Faq />
+-      </main>
+-      <footer className="site-footer">
+-        <div className="container-x site-footer__inner">
+-          <a href="#inicio" className="logo">
+-            <span className="logo__mark">
+-              <Leaf size={15} strokeWidth={2.5} />
+-            </span>
+-            <span className="logo__name">
+-              NUTRI<em>KAL</em>
+-            </span>
+-          </a>
+-          <span>
+-            © 2026 NUTRIKAL · Dados de referência: Tabela TACO (UNICAMP)
+-          </span>
++      <RevealOnScroll />
++      <Hero />
++      <Features />
++      <HowItWorks />
++      <section className="section" style={{ paddingTop: 0 }}>
++        <div className="container-x">
++          <div className="next-step glass" data-reveal>
++            <div>
++              <strong>Pronto para montar a dieta?</strong>
++              <p>Comece pela calculadora e exporte o relatório do paciente.</p>
++            </div>
++            <Link to="/calculadora" className="btn btn-primary">
++              Abrir calculadora
++              <ArrowRight size={16} />
++            </Link>
++          </div>
+         </div>
+-      </footer>
++      </section>
+     </>
+   );
+ }
+diff --git a/src/routes/metas.tsx b/src/routes/metas.tsx
+new file mode 100644
+index 0000000..108ed42
+--- /dev/null
++++ b/src/routes/metas.tsx
+@@ -0,0 +1,41 @@
++import { createFileRoute } from "@tanstack/react-router";
++import { Target } from "lucide-react";
++
++import { GoalsAndWater } from "@/components/GoalsAndWater";
++import { NextStep, PageHead, RevealOnScroll } from "@/components/PageParts";
++
++export const Route = createFileRoute("/metas")({
++  head: () => ({
++    meta: [
++      { title: "Metas e água — NUTRIKAL" },
++      {
++        name: "description",
++        content: "Calcule sua meta diária de calorias e macros e acompanhe a hidratação.",
++      },
++      { property: "og:title", content: "Metas e água — NUTRIKAL" },
++    ],
++  }),
++  component: Page,
++});
++
++function Page() {
++  return (
++    <>
++      <RevealOnScroll />
++      <PageHead
++        icon={Target}
++        eyebrow="Metas e hidratação"
++        title="Defina sua meta e acompanhe o dia"
++      >
++        Calcule seu gasto energético, ajuste a distribuição de macros e registre os copos de água.
++      </PageHead>
++      <GoalsAndWater />
++      <NextStep
++        to="/calculadora"
++        title="Monte a dieta do dia"
++        text="Veja o progresso em relação à meta ao adicionar cada alimento."
++        cta="Abrir calculadora"
++      />
++    </>
++  );
++}
+diff --git a/src/routes/nutrientes.tsx b/src/routes/nutrientes.tsx
+new file mode 100644
+index 0000000..62f82c3
+--- /dev/null
++++ b/src/routes/nutrientes.tsx
+@@ -0,0 +1,32 @@
++import { createFileRoute } from "@tanstack/react-router";
++import { MacroInfo } from "@/components/MacroInfo";
++import { NextStep, RevealOnScroll } from "@/components/PageParts";
++
++export const Route = createFileRoute("/nutrientes")({
++  head: () => ({
++    meta: [
++      { title: "Guia dos nutrientes — NUTRIKAL" },
++      {
++        name: "description",
++        content: "Entenda o papel de proteínas, carboidratos e gorduras na dieta.",
++      },
++      { property: "og:title", content: "Guia dos nutrientes — NUTRIKAL" },
++    ],
++  }),
++  component: Page,
++});
++
++function Page() {
++  return (
++    <>
++      <RevealOnScroll />
++      <MacroInfo />
++      <NextStep
++        to="/calculadora"
++        title="Coloque em prática"
++        text="Calcule os macros de qualquer alimento da Tabela TACO."
++        cta="Calcular agora"
++      />
++    </>
++  );
++}
+diff --git a/src/styles.css b/src/styles.css
+index dae5855..4df43c3 100644
+--- a/src/styles.css
++++ b/src/styles.css
+@@ -6,7 +6,7 @@
+ @custom-variant dark (&:is(.dark *));
+ 
+ /* ============================================================
+-   NutriTech — Design System
++   NutriKal — Design System
+    Dark mode por padrão, minimalista, glassmorphism sutil.
+    Fontes: Inter (carregada via <link> no __root.tsx).
+    ============================================================ */
+@@ -1149,124 +1149,103 @@
+   }
+ }
+ 
+-/* ================= NUTRIKAL v2 — visual profissional e compacto ================= */
+-:root {
+-  --radius: 0.625rem;
+-  --background: oklch(0.976 0.005 20);
+-  --foreground: oklch(0.24 0.02 20);
+-  --card: #fff;
+-  --card-foreground: oklch(0.24 0.02 20);
+-  --primary: oklch(0.52 0.17 8);
+-  --primary-foreground: #fff;
+-  --muted: oklch(0.955 0.006 20);
+-  --muted-foreground: oklch(0.5 0.02 20);
+-  --accent: oklch(0.95 0.02 12);
+-  --accent-foreground: oklch(0.3 0.05 10);
+-  --destructive: oklch(0.55 0.2 27);
+-  --border: oklch(0.9 0.008 20);
+-  --input: oklch(0.9 0.008 20);
+-  --ring: oklch(0.52 0.17 8);
+-  --glass-bg: #fff;
+-  --glass-border: oklch(0.9 0.008 20);
+-  --glass-border-hover: oklch(0.8 0.02 15);
+-  --macro-kcal: oklch(0.58 0.19 12);
+-  --macro-proteina: oklch(0.55 0.15 255);
+-  --macro-carbo: oklch(0.6 0.15 150);
+-  --macro-gordura: oklch(0.68 0.15 65);
+-}
+-body {
+-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+-  background: var(--background);
+-}
+-.section { padding-block: clamp(1.75rem, 3.5vw, 2.75rem); }
+-.glass {
+-  background: #fff;
+-  backdrop-filter: none;
+-  border: 1px solid var(--border);
+-  border-radius: 14px;
+-  box-shadow: 0 1px 2px oklch(0 0 0 / 5%), 0 4px 14px oklch(0.3 0.03 20 / 4%);
+-}
+-.hero::before, .calc::before { display: none; }
+ 
+-/* Header compacto */
+-.site-header { background: rgb(255 255 255 / 0.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); box-shadow: none; }
++/* ================= Layout compacto (cores originais preservadas) ================= */
++body { font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
++.section { padding-block: clamp(1.25rem, 2.5vw, 2rem); }
+ .site-header__inner { height: 56px; min-height: 56px; }
+-
+-/* Hero enxuto: título + estatísticas, sem imagem grande */
+-.hero { padding-top: 56px; background: linear-gradient(180deg, #fff, var(--background)); }
+-.hero__grid { grid-template-columns: 1.4fr 0.8fr; gap: 1.5rem; padding-block: clamp(1.5rem, 3vw, 2.25rem); }
++.hero { padding-top: 56px; }
++.hero__grid { grid-template-columns: 1.4fr 0.8fr; gap: 1.5rem; padding-block: clamp(1.5rem, 3vw, 2.25rem) 0.5rem; }
+ .hero__title { font-size: clamp(1.7rem, 3.6vw, 2.5rem); line-height: 1.15; letter-spacing: -0.03em; font-weight: 800; margin-top: 0.6rem; }
+ .hero__lead { font-size: 1rem; line-height: 1.55; margin-top: 0.6rem; max-width: 36rem; }
+ .hero__actions { margin-top: 1rem; }
+-.grad { background: none; -webkit-text-fill-color: currentColor; color: var(--primary); }
+ .hero__stats { display: grid; gap: 0.5rem; margin: 0; padding: 0; }
+-.hero__stat { display: flex; align-items: baseline; gap: 0.6rem; padding: 0.6rem 0.85rem; background: #fff; border: 1px solid var(--border); border-radius: 12px; }
+-.hero__stat strong { font-size: 1.25rem; color: var(--primary); min-width: 3.8rem; }
++.hero__stat { display: flex; align-items: baseline; gap: 0.6rem; padding: 0.6rem 0.85rem; background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 12px; }
++.hero__stat strong { font-size: 1.25rem; color: color-mix(in oklch, var(--macro-kcal) 55%, var(--foreground)); min-width: 3.8rem; }
+ .hero__stat span { font-size: 0.85rem; color: var(--muted-foreground); }
+-
+-/* Botões e campos */
+-.btn { border-radius: 10px; font-weight: 600; box-shadow: none; }
+-.btn-primary { background: var(--primary); color: #fff; border: 1px solid var(--primary); }
+-.btn-primary:hover { background: oklch(0.45 0.17 8); }
+-.btn-ghost { background: #fff; border: 1px solid var(--border); color: var(--foreground); }
+-.btn-ghost:hover { background: var(--muted); }
+-.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+-.input { background: #fff; border: 1px solid var(--border); border-radius: 10px; }
+-.input:focus, .input:focus-visible { border-color: var(--primary); outline: 2px solid color-mix(in oklch, var(--primary) 30%, transparent); }
+-
+-/* Títulos de seção compactos */
+ .section-head { margin-bottom: 0.9rem; max-width: none; }
+ .section-head h2 { font-size: clamp(1.25rem, 2.4vw, 1.6rem); font-weight: 700; letter-spacing: -0.02em; }
+ .section-head p { margin-top: 0.3rem; font-size: 0.95rem; line-height: 1.5; }
+-
+-/* Calculadora: formulário à esquerda, resultados fixos à direita */
+-.calc__panel { gap: 1rem; padding: 1rem; border-radius: 14px; align-items: start; }
+-.calc__form { gap: 0.7rem; padding: 0; }
+-.calc__results { gap: 0.6rem; position: sticky; top: 68px; }
++.calc__panel { gap: 1rem; padding: 1rem; align-items: start; grid-template-areas: "form results" "form diet"; grid-template-rows: auto 1fr; }
++.calc__form { gap: 0.7rem; padding: 0; grid-area: form; }
++.calc__results { gap: 0.6rem; grid-area: results; }
+ .result-card { padding: 0.75rem 0.9rem; border-radius: 12px; border-left: 4px solid var(--accent); }
+-.result-card::before { display: none; }
+ .result-card__value { font-size: 1.65rem; font-weight: 800; letter-spacing: -0.02em; }
+ .macro-split { grid-column: 1 / -1; padding: 0.8rem 0.9rem; border-radius: 12px; }
+-.diet-panel { margin-top: 0.9rem; padding: 1rem; border-radius: 14px; }
++.diet-panel { grid-area: diet; margin-top: 0; padding: 1rem; }
+ .diet-list { gap: 0.4rem; }
+ .diet-sections { gap: 0.9rem; }
+ .macro-grid { gap: 0.75rem; }
+ .macro-card { padding: 1rem; border-radius: 12px; }
+ .site-footer { padding-block: 1rem; }
+-
+-/* Marca em cor única (sem degradês) */
+-.logo__mark { background: var(--primary); }
+-.logo__name em, .hero__title .grad { background: none; -webkit-text-fill-color: currentColor; color: var(--primary); }
+-.eyebrow { color: var(--primary); background: var(--accent); border-color: transparent; }
+-.goal-option { border-radius: 10px; }
+-.goal-option.is-selected { background: var(--primary); color: #fff; box-shadow: none; }
+-
+-/* Espaçamento mais denso entre seções */
+-.section { padding-block: clamp(1.25rem, 2.5vw, 2rem); }
+-.hero__grid { padding-bottom: 0.5rem; }
+-
+-/* Calculadora em 2 colunas: formulário | resultados + dieta montada */
+-.calc__panel {
+-  grid-template-areas: "form results" "form diet";
+-  grid-template-rows: auto 1fr;
+-}
+-.calc__form { grid-area: form; }
+-.calc__results { grid-area: results; position: static; }
+-.diet-panel { grid-area: diet; margin-top: 0; box-shadow: none; background: var(--muted); }
+ .calc__footnote { margin-top: 0.6rem; }
+-
+-/* Formulários das seções Metas/Água */
++.calc { overflow-x: clip; }
+ label.field { display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted-foreground); }
+ label.field .input { letter-spacing: normal; text-transform: none; font-weight: 400; font-size: 0.95rem; color: var(--foreground); padding: 0.55rem 0.75rem; }
+ 
++/* ================= Páginas novas ================= */
++.page-head h1 { font-size: clamp(1.6rem, 3.4vw, 2.2rem); font-weight: 800; letter-spacing: -0.03em; line-height: 1.15; margin-top: 0.6rem; }
++.page-head p { margin-top: 0.4rem; color: var(--muted-foreground); max-width: 40rem; line-height: 1.55; }
++.feature-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.9rem; }
++.feature-card { display: flex; flex-direction: column; gap: 0.5rem; padding: 1.1rem; text-decoration: none; color: inherit; transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease; }
++.feature-card:hover { transform: translateY(-4px); border-color: var(--glass-border-hover); box-shadow: 0 14px 30px -18px oklch(0.4 0.05 20 / 40%); }
++.feature-card p { font-size: 0.88rem; line-height: 1.5; color: var(--muted-foreground); flex: 1; }
++.feature-card__icon { display: grid; place-items: center; width: 2.4rem; height: 2.4rem; border-radius: 10px; color: color-mix(in oklch, var(--macro-kcal) 55%, var(--foreground)); background: color-mix(in oklch, var(--macro-kcal) 18%, transparent); transition: transform 0.3s ease; }
++.feature-card:hover .feature-card__icon { transform: rotate(-8deg) scale(1.1); }
++.feature-card__go { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.85rem; font-weight: 600; color: color-mix(in oklch, var(--macro-kcal) 55%, var(--foreground)); }
++.feature-card__go svg { transition: transform 0.25s ease; }
++.feature-card:hover .feature-card__go svg { transform: translateX(4px); }
++.how { display: grid; grid-template-columns: 1fr 1.1fr; gap: 1rem; align-items: start; }
++.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.7rem; }
++.steps li { display: flex; gap: 0.8rem; align-items: flex-start; padding: 0.8rem 0.9rem; border: 1px solid var(--glass-border); border-radius: 12px; background: var(--glass-bg); }
++.steps p { font-size: 0.88rem; color: var(--muted-foreground); margin-top: 0.15rem; }
++.steps__n { display: grid; place-items: center; flex: none; width: 1.8rem; height: 1.8rem; border-radius: 50%; font-weight: 700; font-size: 0.85rem; color: #fff; background: var(--macro-kcal); }
++.demo { padding: 1.1rem; display: grid; gap: 0.8rem; }
++.demo__food { font-size: 1rem; }
++.demo__slider { display: grid; grid-template-columns: 1fr auto; gap: 0.3rem 0.8rem; font-size: 0.85rem; color: var(--muted-foreground); }
++.demo__slider input { grid-column: 1 / -1; width: 100%; accent-color: var(--macro-kcal); }
++.demo__slider b { color: var(--foreground); }
++.demo__formula { font-family: ui-monospace, monospace; font-size: 0.9rem; padding: 0.7rem 0.8rem; border-radius: 10px; background: color-mix(in oklch, var(--macro-kcal) 10%, transparent); }
++.demo__chips { display: flex; flex-wrap: wrap; gap: 0.5rem; }
++.demo__chips span { font-size: 0.82rem; padding: 0.35rem 0.7rem; border-radius: 99px; border: 1px solid color-mix(in oklch, var(--c) 40%, transparent); background: color-mix(in oklch, var(--c) 10%, transparent); }
++.demo__chips b { margin-left: 0.25rem; }
++.next-step { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.1rem 1.3rem; flex-wrap: wrap; }
++.next-step p { font-size: 0.9rem; color: var(--muted-foreground); margin-top: 0.15rem; }
++
++/* ================= Animações ================= */
++@keyframes pageIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
++@keyframes itemIn { from { opacity: 0; transform: translateX(-12px) scale(0.98); } to { opacity: 1; transform: none; } }
++@keyframes pop { 0% { transform: scale(0.7); } 60% { transform: scale(1.18); } 100% { transform: scale(1); } }
++@keyframes riseIn { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
++.page { animation: pageIn 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
++.hero__title, .hero__lead, .hero__actions, .hero .eyebrow, .hero__stat { animation: riseIn 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
++.hero .eyebrow { animation-delay: 0.05s; } .hero__title { animation-delay: 0.12s; } .hero__lead { animation-delay: 0.2s; } .hero__actions { animation-delay: 0.28s; }
++.hero__stat:nth-child(1) { animation-delay: 0.2s; } .hero__stat:nth-child(2) { animation-delay: 0.3s; } .hero__stat:nth-child(3) { animation-delay: 0.4s; }
++.feature-card[data-reveal], .steps li[data-reveal] { transition-delay: calc(var(--i, 0) * 90ms); }
++.nav-link.is-active { color: var(--foreground); }
++.nav-link.is-active::after { transform: scaleX(1); opacity: 1; }
++.diet-item { animation: itemIn 0.35s ease both; }
++.result-card { transition: transform 0.2s ease; } .result-card:hover { transform: translateY(-2px); }
++.btn:active { transform: scale(0.97); }
++.water-glass { transition: transform 0.2s ease, background 0.25s ease; cursor: pointer; }
++.water-glass:hover { transform: translateY(-2px); }
++.water-glass.is-on { animation: pop 0.35s ease; }
++
+ @media (max-width: 900px) {
+   .hero__grid { grid-template-columns: 1fr; }
+   .calc__panel { grid-template-columns: 1fr; grid-template-areas: "form" "results" "diet"; grid-template-rows: auto; }
+   .macro-grid { grid-template-columns: 1fr; }
++  .feature-grid { grid-template-columns: repeat(2, 1fr); }
++  .how { grid-template-columns: 1fr; }
+ }
+ @media (max-width: 640px) {
+   .hero__stats { grid-template-columns: repeat(3, 1fr); }
+   .hero__stat { flex-direction: column; gap: 0.1rem; text-align: center; }
+   .hero__stat strong { min-width: 0; }
+   .calc__results { grid-template-columns: repeat(2, 1fr); }
++  .feature-grid { grid-template-columns: 1fr; }
++}
++@media (prefers-reduced-motion: reduce) {
++  .page, .hero__title, .hero__lead, .hero__actions, .hero .eyebrow, .hero__stat, .diet-item, .water-glass.is-on { animation: none !important; }
++  .feature-card, .feature-card *, .result-card, .water-glass { transition: none !important; }
+ }
+-- 
+2.43.0
+
