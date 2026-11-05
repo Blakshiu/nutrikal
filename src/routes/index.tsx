@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Activity, ArrowRight, Calculator, CircleHelp, Target, Wheat } from "lucide-react";
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, useRef, type CSSProperties } from "react";
 
+import heroNutrition from "@/assets/hero-nutrition.jpg";
 import { RevealOnScroll } from "@/components/PageParts";
 import { useAnimatedValue } from "@/hooks/use-animated-value";
 import { TACO_FOODS, type TacoFood } from "@/lib/taco-data";
@@ -57,11 +58,19 @@ const FEATURES = [
 
 function Hero() {
   const [n, setN] = useState(0);
-  useEffect(() => setN(TACO_FOODS.length), []);
   const count = useAnimatedValue(n, 1100);
+
+  useEffect(() => {
+    setN(TACO_FOODS.length);
+  }, []);
 
   return (
     <section className="hero">
+      <img
+        className="hero__image"
+        src={heroNutrition}
+        alt="Frango grelhado, abacate, vegetais e ovos em pratos equilibrados"
+      />
       <div className="container-x hero__grid">
         <div>
           <span className="eyebrow">
@@ -105,8 +114,10 @@ function Hero() {
 }
 
 function Features() {
+  const featuresRef = useRef<HTMLSectionElement>(null);
+
   return (
-    <section className="section">
+    <section ref={featuresRef} className="section">
       <div className="container-x">
         <div className="section-head" data-reveal>
           <h2>Tudo o que você precisa em um só lugar</h2>
@@ -186,6 +197,7 @@ function HowItWorks() {
     ["Informe o peso", "Use os gramas prescritos, não os 100 g da tabela."],
     ["Veja a porção", "O app aplica a regra de três e mostra calorias e macros."],
   ];
+
   return (
     <section className="section">
       <div className="container-x">

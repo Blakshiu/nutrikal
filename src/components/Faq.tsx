@@ -4,6 +4,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { useEntranceAnimation } from "@/hooks/use-gsap-animations";
 
 const FAQ: Array<[string, string]> = [
   [
@@ -33,6 +34,23 @@ const FAQ: Array<[string, string]> = [
 ];
 
 export function Faq() {
+  /* GSAP Animations */
+  useEntranceAnimation("#duvidas .section-head", { y: 40, opacity: 0, duration: 0.8, delay: 0.1 });
+  useEntranceAnimation("#duvidas .glass", {
+    y: 60,
+    opacity: 0,
+    scale: 0.98,
+    duration: 0.8,
+    delay: 0.2,
+  });
+  useEntranceAnimation("#duvidas .faq-item", {
+    y: 40,
+    opacity: 0,
+    duration: 0.5,
+    stagger: 0.1,
+    delay: 0.3,
+  });
+
   return (
     <section id="duvidas" className="section">
       <div className="container-x">
@@ -41,7 +59,7 @@ export function Faq() {
         </div>
         <Accordion type="single" collapsible className="glass px-5">
           {FAQ.map(([q, a], i) => (
-            <AccordionItem key={q} value={`faq-${i}`}>
+            <AccordionItem key={q} value={`faq-${i}`} className="faq-item">
               <AccordionTrigger className="text-left">{q}</AccordionTrigger>
               <AccordionContent className="text-muted-foreground">{a}</AccordionContent>
             </AccordionItem>

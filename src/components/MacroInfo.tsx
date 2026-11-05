@@ -1,4 +1,5 @@
 import { Droplets, Dumbbell, Wheat } from "lucide-react";
+import { useFloat } from "@/hooks/use-gsap-animations";
 
 const MACRO_CARDS = [
   {
@@ -28,6 +29,9 @@ const MACRO_CARDS = [
 ];
 
 export function MacroInfo() {
+  // Floating animation for macro card icons
+  useFloat(".macro-card__icon", { y: 15, x: 10, rotation: 5, duration: 3, stagger: 0.2 });
+
   return (
     <section id="nutrientes" className="section">
       <div className="container-x">

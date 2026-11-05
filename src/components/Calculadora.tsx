@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { Calculator, Droplets, Dumbbell, Flame, Search, Wheat } from "lucide-react";
 import { TACO_FOODS, type TacoFood } from "@/lib/taco-data";
 import { GoalProgress } from "@/components/GoalsAndWater";
 import { useAnimatedValue } from "@/hooks/use-animated-value";
 import { usePersistedState } from "@/hooks/use-persisted-state";
 import { DEFAULT_SECTIONS, escapeHtml, hasNoMacroData } from "@/lib/diet-tools";
+import { useGSAP, useEntranceAnimation, useScrollReveal } from "@/hooks/use-gsap-animations";
 
 /** Formata número no padrão pt-BR com 1 casa decimal no máximo. */
 const formatNumber = (n: number): string => n.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
@@ -138,11 +139,14 @@ function ResultCard({
 }
 
 export function Calculadora() {
+  const sectionRef = useRef<HTMLSectionElement>(null);
+
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<TacoFood | null>(TACO_FOODS[0] ?? null);
   const [quantidade, setQuantidade] = useState("100");
   const [unidade, setUnidade] = useState<PortionUnit>("g");
   const [comboOpen, setComboOpen] = useState(false);
+  const [activeFoodId, setActiveFoodId] = useState<string | null>(null);
   const [categoria, setCategoria] = useState("Todos");
   const [diet, setDiet] = usePersistedState<DietItem[]>("nutrikal:diet", []);
   const [dietGoal, setDietGoal] = usePersistedState<DietGoal>("nutrikal:objective", "manutencao");
@@ -154,6 +158,25 @@ export function Calculadora() {
   const [newSectionName, setNewSectionName] = useState("");
   const [patientName, setPatientName] = usePersistedState("nutrikal:patient", "Paciente");
   const [reportDate, setReportDate] = useState(() => new Date().toISOString().slice(0, 10));
+
+  /* GSAP Animations */
+  useEntranceAnimation(".calc__form .field", {
+    y: 40,
+    opacity: 0,
+    duration: 0.6,
+    stagger: 0.08,
+    delay: 0.3,
+  });
+  useEntranceAnimation(".calc__results .result-card", {
+    y: 40,
+    opacity: 0,
+    scale: 0.95,
+    duration: 0.6,
+    stagger: 0.1,
+    ease: "back.out(1.5)",
+    delay: 0.4,
+  });
+  useEntranceAnimation(".macro-split", { y: 30, opacity: 0, duration: 0.6, delay: 0.5 });
 
   /* Mantém a seção selecionada válida (seções salvas, remoções, primeira carga). */
   useEffect(() => {
@@ -194,6 +217,13 @@ export function Calculadora() {
     }
     return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b, "pt-BR"));
   }, [filtered]);
+
+  const comboFoods = useMemo(() => groupedFoods.flatMap(([, foods]) => foods), [groupedFoods]);
+
+  useEffect(() => {
+    if (!activeFoodId) return;
+    document.getElementById(`food-option-${activeFoodId}`)?.scrollIntoView({ block: "nearest" });
+  }, [activeFoodId]);
 
   const dietaTotal = useMemo(
     () =>
@@ -583,6 +613,7 @@ export function Calculadora() {
     setSelected(food);
     setQuery("");
     setComboOpen(false);
+    setActiveFoodId(null);
   };
 
   const renderGroup = (label: string, items: TacoFood[]) =>
@@ -593,12 +624,15 @@ export function Calculadora() {
           <button
             key={food.id}
             type="button"
-            className={`combo__item ${selected?.id === food.id ? "is-active" : ""}`}
-            /* onMouseDown + preventDefault: seleciona antes do blur fechar a lista */
+            id={`food-option-${food.id}`}
+            className={`combo__item ${selected?.id === food.id ? "is-active" : ""} ${activeFoodId === food.id ? "is-highlighted" : ""}`}
+            role="option"
+            aria-selected={selected?.id === food.id}
+            tabIndex={-1}
             onMouseDown={(e) => {
               e.preventDefault();
-              selectFood(food);
             }}
+            onClick={() => selectFood(food)}
           >
             {food.nome}
             <small>{food.por100g.kcal} kcal/100g</small>
@@ -635,16 +669,65 @@ export function Calculadora() {
                   type="text"
                   placeholder={selected ? selected.nome : "Busque um alimento…"}
                   value={comboOpen || query ? query : (selected?.nome ?? "")}
+                  role="combobox"
+                  aria-expanded={comboOpen}
+                  aria-controls="food-options"
+                  aria-activedescendant={activeFoodId ? `food-option-${activeFoodId}` : undefined}
+                  aria-autocomplete="list"
                   autoComplete="off"
-                  onFocus={() => setComboOpen(true)}
-                  onBlur={() => setComboOpen(false)}
+                  onFocus={() => {
+                    setComboOpen(true);
+                    setActiveFoodId(selected?.id ?? comboFoods[0]?.id ?? null);
+                  }}
+                  onBlur={(event) => {
+                    const nextTarget = event.relatedTarget;
+                    if (
+                      !(nextTarget instanceof Node) ||
+                      !event.currentTarget.parentElement?.contains(nextTarget)
+                    ) {
+                      setComboOpen(false);
+                      setActiveFoodId(null);
+                    }
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Escape") {
+                      setComboOpen(false);
+                      setActiveFoodId(null);
+                      return;
+                    }
+
+                    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+                      event.preventDefault();
+                      setComboOpen(true);
+                      if (comboFoods.length === 0) return;
+                      const currentIndex = comboFoods.findIndex((food) => food.id === activeFoodId);
+                      const nextIndex =
+                        event.key === "ArrowDown"
+                          ? (currentIndex + 1) % comboFoods.length
+                          : currentIndex <= 0
+                            ? comboFoods.length - 1
+                            : currentIndex - 1;
+                      setActiveFoodId(comboFoods[nextIndex]?.id ?? null);
+                      return;
+                    }
+
+                    if (event.key === "Enter" && comboOpen) {
+                      const food =
+                        comboFoods.find((item) => item.id === activeFoodId) ?? comboFoods[0];
+                      if (food) {
+                        event.preventDefault();
+                        selectFood(food);
+                      }
+                    }
+                  }}
                   onChange={(e) => {
                     setQuery(e.target.value);
                     setComboOpen(true);
+                    setActiveFoodId(null);
                   }}
                 />
                 {comboOpen && (
-                  <div className="combo__list" role="listbox">
+                  <div id="food-options" className="combo__list" role="listbox">
                     {filtered.length === 0 && (
                       <div className="combo__empty">Nenhum alimento encontrado para “{query}”.</div>
                     )}

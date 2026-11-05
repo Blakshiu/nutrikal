@@ -1,4 +1,5 @@
 import { Droplets, Target } from "lucide-react";
+import { useRef } from "react";
 
 import { usePersistedState } from "@/hooks/use-persisted-state";
 import {
@@ -12,6 +13,7 @@ import {
   type DailyGoal,
   type Profile,
 } from "@/lib/diet-tools";
+import { useEntranceAnimation } from "@/hooks/use-gsap-animations";
 
 const fmt = (n: number, d = 0) => n.toLocaleString("pt-BR", { maximumFractionDigits: d });
 const today = () => new Date().toLocaleDateString("sv-SE"); // AAAA-MM-DD local
@@ -60,6 +62,8 @@ export function GoalProgress({
 
 /* ---------- Metas (TMB) e água ---------- */
 export function GoalsAndWater() {
+  const sectionRef = useRef<HTMLSectionElement>(null);
+
   const [profile, setProfile] = usePersistedState<Profile>(PROFILE_KEY, DEFAULT_PROFILE);
   const [goal, setGoal] = usePersistedState<DailyGoal>(GOAL_KEY, DEFAULT_GOAL);
   const [water, setWater] = usePersistedState<{ day: string; n: number }>(WATER_KEY, {
@@ -67,6 +71,23 @@ export function GoalsAndWater() {
     n: 0,
   });
 
+  /* GSAP Animations */
+  useEntranceAnimation("#metas .section-head", { y: 40, opacity: 0, duration: 0.8, delay: 0.1 });
+  useEntranceAnimation("#metas .glass", {
+    y: 60,
+    opacity: 0,
+    scale: 0.98,
+    duration: 0.8,
+    stagger: 0.1,
+    delay: 0.2,
+  });
+  useEntranceAnimation("#metas .field", {
+    y: 30,
+    opacity: 0,
+    duration: 0.5,
+    stagger: 0.05,
+    delay: 0.3,
+  });
   const num = (v: string) => Math.max(0, parseFloat(v.replace(",", ".")) || 0);
   const setP = <K extends keyof Profile>(k: K, v: Profile[K]) =>
     setProfile((p) => ({ ...p, [k]: v }));
