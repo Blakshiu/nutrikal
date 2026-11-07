@@ -8,6 +8,8 @@ export interface MacroPer100g {
   carboidratos: number;
   proteinas: number;
   gorduras: number;
+  fibras?: number;
+  sodio?: number;
 }
 
 export interface TacoFood {
@@ -34,7 +36,14 @@ export const TACO_FOODS: TacoFood[] = [
     id: "3",
     nome: "Arroz, tipo 1, cozido",
     categoria: "Cereais e derivados",
-    por100g: { kcal: 128.26, carboidratos: 28.06, proteinas: 2.52, gorduras: 0.23 },
+    por100g: {
+      kcal: 128.26,
+      carboidratos: 28.06,
+      proteinas: 2.52,
+      gorduras: 0.23,
+      fibras: 1.6,
+      sodio: 1,
+    },
   },
   {
     id: "4",
@@ -1108,7 +1117,14 @@ export const TACO_FOODS: TacoFood[] = [
     id: "182",
     nome: "Banana, prata, crua",
     categoria: "Frutas e derivados",
-    por100g: { kcal: 98.25, carboidratos: 25.96, proteinas: 1.27, gorduras: 0.07 },
+    por100g: {
+      kcal: 98.25,
+      carboidratos: 25.96,
+      proteinas: 1.27,
+      gorduras: 0.07,
+      fibras: 2,
+      sodio: 0,
+    },
   },
   {
     id: "183",
@@ -2476,7 +2492,14 @@ export const TACO_FOODS: TacoFood[] = [
     id: "410",
     nome: "Frango, peito, sem pele, grelhado",
     categoria: "Carnes e derivados",
-    por100g: { kcal: 159.19, carboidratos: 0.0, proteinas: 32.03, gorduras: 2.48 },
+    por100g: {
+      kcal: 159.19,
+      carboidratos: 0.0,
+      proteinas: 32.03,
+      gorduras: 2.48,
+      fibras: 0,
+      sodio: 50,
+    },
   },
   {
     id: "411",
@@ -2944,7 +2967,14 @@ export const TACO_FOODS: TacoFood[] = [
     id: "488",
     nome: "Ovo, de galinha, inteiro, cozido/10minutos",
     categoria: "Ovos e derivados",
-    por100g: { kcal: 145.7, carboidratos: 0.61, proteinas: 13.29, gorduras: 9.48 },
+    por100g: {
+      kcal: 145.7,
+      carboidratos: 0.61,
+      proteinas: 13.29,
+      gorduras: 9.48,
+      fibras: 0,
+      sodio: 146,
+    },
   },
   {
     id: "489",
@@ -3382,7 +3412,14 @@ export const TACO_FOODS: TacoFood[] = [
     id: "561",
     nome: "Feijão, carioca, cozido",
     categoria: "Leguminosas e derivados",
-    por100g: { kcal: 76.42, carboidratos: 13.59, proteinas: 4.78, gorduras: 0.54 },
+    por100g: {
+      kcal: 76.42,
+      carboidratos: 13.59,
+      proteinas: 4.78,
+      gorduras: 0.54,
+      fibras: 8.5,
+      sodio: 2,
+    },
   },
   {
     id: "562",

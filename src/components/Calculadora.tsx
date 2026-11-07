@@ -361,152 +361,179 @@ export function Calculadora() {
           <title>NUTRIKAL — Plano alimentar</title>
           <style>
             :root {
-              --pink: #e7a6b0;
-              --pink-strong: #c56b74;
-              --brown: #5d3b35;
-              --cream: #fff8f7;
-              --line: #ebd5d9;
-              --text: #3f2c2a;
-              --muted: #7a5d5d;
+              --pink: #fbcfe8;
+              --pink-strong: #db2777;
+              --pink-dark: #831843;
+              --cream: #fff7fb;
+              --line: #f3d9e7;
+              --text: #334155;
+              --muted: #64748b;
             }
 
             * { box-sizing: border-box; }
             body {
               margin: 0;
-              padding: 32px;
-              font-family: Arial, sans-serif;
+              padding: 24px;
+              font-family: Arial, Helvetica, sans-serif;
               color: var(--text);
-              background: var(--cream);
+              background: #fff;
             }
             .report {
-              max-width: 980px;
+              max-width: 1120px;
               margin: 0 auto;
               background: #fff;
               border: 1px solid var(--line);
-              border-radius: 18px;
-              overflow: hidden;
-              box-shadow: 0 14px 40px rgba(93, 59, 53, 0.08);
+              border-radius: 14px;
             }
             .header {
-              display: flex;
-              align-items: center;
-              justify-content: space-between;
-              padding: 24px 30px;
-              background: linear-gradient(135deg, #fbe9ed 0%, #f5dfe3 100%);
+              padding: 22px 26px;
+              background: linear-gradient(110deg, #fce7f3 0%, #fff7fb 68%, #fdf2f8 100%);
               border-bottom: 1px solid var(--line);
             }
             .brand {
-              display: flex;
-              align-items: center;
-              gap: 10px;
-              font-size: 22px;
+              font-size: 20px;
               font-weight: 700;
-              letter-spacing: 0.05em;
-              color: var(--brown);
+              letter-spacing: 0.04em;
+              color: var(--text);
             }
-            .brand-mark {
-              width: 28px;
-              height: 28px;
-              border-radius: 8px;
-              display: inline-flex;
-              align-items: center;
-              justify-content: center;
-              background: linear-gradient(135deg, var(--pink) 0%, var(--pink-strong) 100%);
-              color: white;
-              font-weight: 700;
+            .brand strong {
+              color: var(--pink-strong);
             }
-            .header small {
+            .report-title {
+              margin: 7px 0 0;
+              color: var(--pink-dark);
+              font-size: 24px;
+              line-height: 1.2;
+            }
+            .report-subtitle {
+              margin: 5px 0 0;
               color: var(--muted);
               font-size: 12px;
-              letter-spacing: 0.08em;
-              text-transform: uppercase;
             }
             .content {
-              padding: 28px 30px 32px;
+              padding: 22px 26px 26px;
             }
-            .summary-bar {
-              display: grid;
-              grid-template-columns: repeat(4, minmax(140px, 1fr));
-              gap: 12px;
-              margin-bottom: 22px;
+            .summary-table {
+              width: 100%;
+              margin: 0 0 18px;
+              border-spacing: 8px 0;
+              table-layout: fixed;
+              border-collapse: separate;
             }
             .kpi {
-              background: #fff9f9;
+              width: 25%;
+              padding: 12px 14px;
+              background: var(--cream);
               border: 1px solid var(--line);
-              border-radius: 12px;
-              padding: 14px 16px;
+              border-radius: 10px;
+              vertical-align: top;
             }
             .kpi-label {
               display: block;
-              font-size: 11px;
-              letter-spacing: 0.1em;
+              margin-bottom: 5px;
+              font-size: 10px;
+              letter-spacing: 0.07em;
               text-transform: uppercase;
               color: var(--muted);
-              margin-bottom: 6px;
             }
             .kpi-value {
-              font-size: 22px;
+              font-size: 19px;
               font-weight: 700;
-              color: var(--brown);
+              color: var(--pink-dark);
+            }
+            .section-title {
+              margin: 20px 0 8px;
+              color: var(--pink-dark);
+              font-size: 14px;
             }
             .goal {
-              margin-bottom: 20px;
-              padding: 14px 16px;
+              margin: 0 0 10px;
+              padding: 11px 14px;
+              border: 1px solid var(--line);
               border-left: 4px solid var(--pink-strong);
-              background: #fff6f7;
-              border-radius: 10px;
-              color: var(--brown);
-              font-weight: 600;
+              background: var(--cream);
+              color: var(--pink-dark);
+              font-size: 12px;
+              font-weight: 700;
             }
             .goal span { color: var(--muted); font-weight: 500; }
             .patient-meta {
-              display: flex;
-              gap: 18px;
-              flex-wrap: wrap;
-              padding: 14px 16px;
-              background: #ffffff;
-              border: 1px solid var(--line);
-              border-radius: 10px;
-              margin-bottom: 18px;
-              color: var(--brown);
-              font-weight: 600;
+              width: 100%;
+              margin: 0 0 18px;
+              border-collapse: collapse;
             }
-            .patient-meta span {
+            .patient-meta td {
+              width: 50%;
+              padding: 10px 12px;
+              border: 1px solid var(--line);
+              color: var(--text);
+              font-size: 12px;
+            }
+            .patient-meta strong {
+              color: var(--pink-dark);
+            }
+            .patient-meta .meta-label {
               color: var(--muted);
               font-weight: 500;
             }
             table {
               width: 100%;
               border-collapse: collapse;
-              margin-top: 12px;
-              font-size: 14px;
+              table-layout: fixed;
+              font-size: 11px;
             }
             th, td {
               border: 1px solid var(--line);
-              padding: 11px 10px;
+              padding: 9px 8px;
               text-align: left;
+              vertical-align: top;
             }
             th {
-              background: #f8edf0;
-              color: var(--brown);
+              background: #fce7f3;
+              color: var(--pink-dark);
               font-weight: 700;
             }
+            .meal-table th:first-child, .meal-table td:first-child { width: 38%; }
+            .meal-table th:nth-child(2), .meal-table td:nth-child(2) { width: 17%; }
+            .meal-table th:nth-child(n+3), .meal-table td:nth-child(n+3) { width: 11.25%; }
+            .meal-table td:not(:first-child) { white-space: nowrap; }
+            .meal-table td small { color: var(--muted); }
             .section-row td {
-              padding: 13px 10px 8px;
-              border: none;
+              padding: 11px 8px 7px;
+              border: 0;
               border-bottom: 2px solid var(--pink);
               background: #fff;
               color: var(--pink-strong);
-              font-size: 12px;
+              font-size: 10px;
               font-weight: 700;
-              letter-spacing: 0.1em;
+              letter-spacing: 0.08em;
               text-transform: uppercase;
             }
-            tbody tr:nth-child(even) { background: #fffaf9; }
+            tbody tr:not(.section-row):nth-child(even) { background: #fffafd; }
+            tr { page-break-inside: avoid; }
             .footer-note {
-              margin-top: 18px;
-              font-size: 12px;
+              margin-top: 16px;
+              padding-top: 10px;
+              border-top: 1px solid var(--line);
+              font-size: 10px;
+              line-height: 1.5;
               color: var(--muted);
+            }
+            @page {
+              size: A4 landscape;
+              margin: 12mm;
+            }
+            @media print {
+              body { padding: 0; background: #fff; }
+              .report {
+                max-width: none;
+                border: 0;
+                border-radius: 0;
+              }
+              .header, .kpi, .goal, th {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+              }
             }
           </style>
         </head>
@@ -514,42 +541,36 @@ export function Calculadora() {
           <div class="report">
             <div class="header">
               <div class="brand">
-                <span class="brand-mark">N</span>
-                NUTRIKAL
+                NUTRI<strong>KAL</strong>
               </div>
-              <small>Plano alimentar · ${goalLabel}</small>
+              <h1 class="report-title">Plano alimentar</h1>
+              <p class="report-subtitle">${escapeHtml(goalLabel)} · Relatório gerado em ${reportDateLabel}</p>
             </div>
 
             <div class="content">
-              <div class="summary-bar">
-                <div class="kpi">
-                  <span class="kpi-label">Calorias</span>
-                  <span class="kpi-value">${formatNumber(dietaTotal.kcal)} kcal</span>
-                </div>
-                <div class="kpi">
-                  <span class="kpi-label">Proteína</span>
-                  <span class="kpi-value">${formatNumber(dietaTotal.proteinas)} g</span>
-                </div>
-                <div class="kpi">
-                  <span class="kpi-label">Carboidratos</span>
-                  <span class="kpi-value">${formatNumber(dietaTotal.carboidratos)} g</span>
-                </div>
-                <div class="kpi">
-                  <span class="kpi-label">Gorduras</span>
-                  <span class="kpi-value">${formatNumber(dietaTotal.gorduras)} g</span>
-                </div>
-              </div>
+              <table class="summary-table">
+                <tbody><tr>
+                  <td class="kpi"><span class="kpi-label">Calorias</span><span class="kpi-value">${formatNumber(dietaTotal.kcal)} kcal</span></td>
+                  <td class="kpi"><span class="kpi-label">Proteínas</span><span class="kpi-value">${formatNumber(dietaTotal.proteinas)} g</span></td>
+                  <td class="kpi"><span class="kpi-label">Carboidratos</span><span class="kpi-value">${formatNumber(dietaTotal.carboidratos)} g</span></td>
+                  <td class="kpi"><span class="kpi-label">Gorduras</span><span class="kpi-value">${formatNumber(dietaTotal.gorduras)} g</span></td>
+                </tr></tbody>
+              </table>
 
-              <div class="patient-meta">
-                <div>Paciente: <strong>${escapeHtml(safePatientName)}</strong></div>
-                <div>Data: <span>${reportDateLabel}</span></div>
-              </div>
+              <h2 class="section-title">Dados do plano</h2>
+              <table class="patient-meta">
+                <tbody><tr>
+                  <td><span class="meta-label">Paciente:</span> <strong>${escapeHtml(safePatientName)}</strong></td>
+                  <td><span class="meta-label">Data:</span> <strong>${reportDateLabel}</strong></td>
+                </tr></tbody>
+              </table>
 
               <div class="goal">
-                Objetivo: ${goalLabel} <span>· ${GOAL_OPTIONS[dietGoal].emphasis}</span>
+                Objetivo: ${escapeHtml(goalLabel)} <span>· ${escapeHtml(GOAL_OPTIONS[dietGoal].emphasis)}</span>
               </div>
 
-              <table>
+              <h2 class="section-title">Refeições e alimentos</h2>
+              <table class="meal-table">
                 <thead>
                   <tr>
                     <th>Alimento</th>
