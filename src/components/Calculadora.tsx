@@ -4,7 +4,7 @@ import { matchesTacoFoodQuery, TACO_FOODS, type TacoFood } from "@/lib/taco-data
 import { GoalProgress } from "@/components/GoalsAndWater";
 import { useAnimatedValue } from "@/hooks/use-animated-value";
 import { usePersistedState } from "@/hooks/use-persisted-state";
-import { DEFAULT_SECTIONS, escapeHtml, hasNoMacroData } from "@/lib/diet-tools";
+import { DEFAULT_SECTIONS, escapeHtml, hasNoMacroData, type MealSection } from "@/lib/diet-tools";
 import { useGSAP, useEntranceAnimation, useScrollReveal } from "@/hooks/use-gsap-animations";
 
 /** Formata número no padrão pt-BR com 1 casa decimal no máximo. */
@@ -45,11 +45,6 @@ interface MacroTotals {
 
 type DietGoal = "emagrecimento" | "manutencao" | "ganho";
 type PortionUnit = "g" | "u";
-
-interface MealSection {
-  id: string;
-  name: string;
-}
 
 interface DietItem {
   id: string;
@@ -296,10 +291,22 @@ export function Calculadora() {
     const section: MealSection = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       name,
+      time: "",
     };
     setMealSections((prev) => [...prev, section]);
     setSelectedSectionId(section.id);
     setNewSectionName("");
+  };
+
+  const removeMealSection = (section: MealSection) => {
+    const sectionItems = diet.filter((item) => item.sectionId === section.id);
+    const message = sectionItems.length
+      ? `Remover "${section.name}" e os ${sectionItems.length} alimento(s) desta refeição?`
+      : `Remover a refeição "${section.name}"?`;
+    if (!window.confirm(message)) return;
+
+    setMealSections((current) => current.filter((item) => item.id !== section.id));
+    setDiet((current) => current.filter((item) => item.sectionId !== section.id));
   };
 
   const exportDiet = (format: "pdf" | "doc") => {
@@ -880,6 +887,23 @@ export function Calculadora() {
                   Adicionar seção
                 </button>
               </div>
+              {mealSections.length > 0 && (
+                <ul className="section-manage-list" aria-label="Gerenciar seções de refeição">
+                  {mealSections.map((section) => (
+                    <li key={section.id}>
+                      <span>{section.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeMealSection(section)}
+                        aria-label={`Remover refeição ${section.name}`}
+                        title={`Remover refeição ${section.name}`}
+                      >
+                        Remover
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
 
             <div className="diet-actions">

@@ -29,11 +29,24 @@ export const DEFAULT_PROFILE: Profile = {
   objective: 0,
 };
 export const DEFAULT_GOAL: DailyGoal = { kcal: 2000, p: 25, c: 45, f: 30 };
+export interface MealSection {
+  id: string;
+  name: string;
+  time?: string;
+}
+
+export const DEFAULT_SECTION_TIMES: Record<string, string> = {
+  cafe: "08:00",
+  almoco: "12:30",
+  lanche: "16:00",
+  jantar: "19:30",
+};
+
 export const DEFAULT_SECTIONS = [
-  { id: "cafe", name: "Café da manhã" },
-  { id: "almoco", name: "Almoço" },
-  { id: "lanche", name: "Lanche da tarde" },
-  { id: "jantar", name: "Jantar" },
+  { id: "cafe", name: "Café da manhã", time: DEFAULT_SECTION_TIMES.cafe },
+  { id: "almoco", name: "Almoço", time: DEFAULT_SECTION_TIMES.almoco },
+  { id: "lanche", name: "Lanche da tarde", time: DEFAULT_SECTION_TIMES.lanche },
+  { id: "jantar", name: "Jantar", time: DEFAULT_SECTION_TIMES.jantar },
 ];
 
 /** Taxa metabólica basal — equação de Mifflin-St Jeor. */

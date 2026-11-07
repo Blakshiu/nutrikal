@@ -3548,3 +3548,89 @@ label.field .input {
     animation: none;
   }
 }
+.nutrition-taco-note__help {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  flex: none;
+  place-items: center;
+  border-radius: 50%;
+  color: #64748b;
+  transition:
+    background 0.18s ease,
+    color 0.18s ease;
+}
+.nutrition-taco-note__help:hover,
+.nutrition-taco-note__help:focus-visible {
+  background: #fce7f3;
+  color: #be185d;
+}
+.nutrition-meal__controls {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 0.3rem;
+}
+.nutrition-meal__time {
+  width: 4.65rem;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #64748b;
+  font: inherit;
+  font-size: 0.62rem;
+}
+.nutrition-meal__time:focus-visible {
+  border-radius: 4px;
+  outline: 2px solid #f9a8d4;
+  outline-offset: 2px;
+}
+.nutrition-meal__remove {
+  display: grid;
+  width: 1.85rem;
+  height: 1.85rem;
+  place-items: center;
+  border: 1px solid #f1e4eb;
+  border-radius: 8px;
+  background: #fff;
+  color: #a8738b;
+  cursor: pointer;
+  transition:
+    background 0.18s ease,
+    color 0.18s ease;
+}
+.nutrition-meal__remove:hover {
+  background: #fff1f5;
+  color: #be185d;
+}
+.section-manage-list {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0.55rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+.section-manage-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid var(--glass-border);
+  border-radius: 0.6rem;
+  color: var(--foreground);
+  font-size: 0.78rem;
+}
+.section-manage-list button {
+  border: 0;
+  background: transparent;
+  color: #be185d;
+  font: inherit;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+.section-manage-list button:hover {
+  color: #9d174d;
+  text-decoration: underline;
+}

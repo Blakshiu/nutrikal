@@ -26,20 +26,17 @@ import { usePersistedState } from "@/hooks/use-persisted-state";
 import {
   DEFAULT_GOAL,
   DEFAULT_PROFILE,
+  DEFAULT_SECTION_TIMES,
   DEFAULT_SECTIONS,
   GOAL_KEY,
   PROFILE_KEY,
   WATER_KEY,
   goalGrams,
   type DailyGoal,
+  type MealSection,
   type Profile,
 } from "@/lib/diet-tools";
 import { matchesTacoFoodQuery, TACO_FOODS, type TacoFood } from "@/lib/taco-data";
-
-interface MealSection {
-  id: string;
-  name: string;
-}
 
 interface DietItem {
   id: string;
@@ -71,13 +68,6 @@ const POPULAR_FOODS = [
   "Ovo, de galinha, inteiro, cozido/10minutos",
 ];
 const TACO_FOODS_BY_ID = new Map(TACO_FOODS.map((food) => [food.id, food]));
-
-const MEAL_TIMES: Record<string, string> = {
-  cafe: "08:00",
-  almoco: "12:30",
-  lanche: "16:00",
-  jantar: "19:30",
-};
 
 function PortionEditor({ grams, onChange }: { grams: number; onChange: (grams: number) => void }) {
   const [value, setValue] = useState(String(Math.round(grams)));
@@ -324,10 +314,27 @@ export function NutritionHome() {
   const addSection = () => {
     const name = newSectionName.trim();
     if (!name) return;
-    const section = { id: `${Date.now()}`, name };
+    const section: MealSection = { id: `${Date.now()}`, name, time: "" };
     setSections((current) => [...current, section]);
     setActiveSection(section.id);
     setNewSectionName("");
+  };
+
+  const removeSection = (section: MealSection) => {
+    const sectionItems = diet.filter((item) => item.sectionId === section.id);
+    const message = sectionItems.length
+      ? `Remover "${section.name}" e os ${sectionItems.length} alimento(s) desta refeição?`
+      : `Remover a refeição "${section.name}"?`;
+    if (!window.confirm(message)) return;
+
+    setSections((current) => current.filter((item) => item.id !== section.id));
+    setDiet((current) => current.filter((item) => item.sectionId !== section.id));
+  };
+
+  const updateSectionTime = (sectionId: string, time: string) => {
+    setSections((current) =>
+      current.map((section) => (section.id === sectionId ? { ...section, time } : section)),
+    );
   };
 
   const dayWater = (count: number) => setWater({ day: today(), n: count });
@@ -659,7 +666,16 @@ export function NutritionHome() {
                   <strong>Baseado na Tabela TACO</strong>
                   <small>{TACO_FOODS.length} alimentos · valores por 100 g</small>
                 </span>
-                <CircleHelp size={16} />
+                <a
+                  className="nutrition-taco-note__help"
+                  href="https://nepa.unicamp.br/tabela-brasileira-de-composicao-de-alimentos-4a-edicao/"
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label="Consultar a Tabela TACO no site da Unicamp"
+                  title="Consultar a Tabela TACO no site da Unicamp"
+                >
+                  <CircleHelp size={16} />
+                </a>
               </div>
             )}
           </section>
@@ -693,22 +709,42 @@ export function NutritionHome() {
                         <div>
                           <h3>{section.name}</h3>
                           <span>
-                            <Clock3 size={12} /> {MEAL_TIMES[section.id] ?? "—"}
+                            <Clock3 size={12} />
+                            <input
+                              className="nutrition-meal__time"
+                              type="time"
+                              value={section.time ?? DEFAULT_SECTION_TIMES[section.id] ?? ""}
+                              onChange={(event) =>
+                                updateSectionTime(section.id, event.target.value)
+                              }
+                              aria-label={`Horário de ${section.name}`}
+                            />
                             {items.length > 0 && ` · ${format(mealKcal)} kcal`}
                           </span>
                         </div>
-                        <button
-                          type="button"
-                          className="nutrition-meal__add"
-                          onClick={() => {
-                            setActiveSection(section.id);
-                            setQuery("");
-                            setFoodDrawerOpen(true);
-                          }}
-                          aria-label={`Adicionar alimento a ${section.name}`}
-                        >
-                          <Plus size={16} />
-                        </button>
+                        <div className="nutrition-meal__controls">
+                          <button
+                            type="button"
+                            className="nutrition-meal__add"
+                            onClick={() => {
+                              setActiveSection(section.id);
+                              setQuery("");
+                              setFoodDrawerOpen(true);
+                            }}
+                            aria-label={`Adicionar alimento a ${section.name}`}
+                          >
+                            <Plus size={16} />
+                          </button>
+                          <button
+                            type="button"
+                            className="nutrition-meal__remove"
+                            onClick={() => removeSection(section)}
+                            aria-label={`Remover refeição ${section.name}`}
+                            title={`Remover refeição ${section.name}`}
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
                       </div>
 
                       {items.length ? (
