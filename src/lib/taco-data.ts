@@ -19,6 +19,27 @@ export interface TacoFood {
   por100g: MacroPer100g;
 }
 
+const TACO_SEARCH_STOP_WORDS = new Set(["de", "da", "do", "das", "dos", "e"]);
+
+const normalizeTacoSearch = (value: string) =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+export const matchesTacoFoodQuery = (foodName: string, query: string) => {
+  const terms = normalizeTacoSearch(query)
+    .split(/[\s,]+/)
+    .filter((term) => term && !TACO_SEARCH_STOP_WORDS.has(term));
+  const name = normalizeTacoSearch(foodName);
+
+  return terms.every((term) =>
+    term === "branco"
+      ? name.includes("arroz") && (name.includes("tipo 1") || name.includes("tipo 2"))
+      : name.includes(term),
+  );
+};
+
 export const TACO_FOODS: TacoFood[] = [
   {
     id: "1",

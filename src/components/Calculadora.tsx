@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import { Calculator, Droplets, Dumbbell, Flame, Search, Wheat } from "lucide-react";
-import { TACO_FOODS, type TacoFood } from "@/lib/taco-data";
+import { matchesTacoFoodQuery, TACO_FOODS, type TacoFood } from "@/lib/taco-data";
 import { GoalProgress } from "@/components/GoalsAndWater";
 import { useAnimatedValue } from "@/hooks/use-animated-value";
 import { usePersistedState } from "@/hooks/use-persisted-state";
@@ -159,6 +159,10 @@ export function Calculadora() {
   const [patientName, setPatientName] = usePersistedState("nutrikal:patient", "Paciente");
   const [reportDate, setReportDate] = useState(() => new Date().toISOString().slice(0, 10));
 
+  useEffect(() => {
+    setReportDate(new Date().toLocaleDateString("sv-SE"));
+  }, []);
+
   /* GSAP Animations */
   useEntranceAnimation(".calc__form .field", {
     y: 40,
@@ -194,15 +198,8 @@ export function Calculadora() {
 
   /* Filtra a TACO pelo texto digitado e pela categoria selecionada. */
   const filtered = useMemo(() => {
-    /* Busca por palavras: "banana prata" encontra "Banana, prata, crua". */
-    const tokens = normalize(query)
-      .split(/[\s,]+/)
-      .filter(Boolean);
     return [...TACO_FOODS]
-      .filter((f) => {
-        const nome = normalize(f.nome);
-        return tokens.every((t) => nome.includes(t));
-      })
+      .filter((food) => matchesTacoFoodQuery(food.nome, query))
       .filter((f) => categoria === "Todos" || f.categoria === categoria)
       .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
   }, [query, categoria]);

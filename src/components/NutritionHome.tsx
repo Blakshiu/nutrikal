@@ -25,13 +25,16 @@ import heroNutrition from "@/assets/hero-nutrition.jpg";
 import { usePersistedState } from "@/hooks/use-persisted-state";
 import {
   DEFAULT_GOAL,
+  DEFAULT_PROFILE,
   DEFAULT_SECTIONS,
   GOAL_KEY,
+  PROFILE_KEY,
   WATER_KEY,
   goalGrams,
   type DailyGoal,
+  type Profile,
 } from "@/lib/diet-tools";
-import { TACO_FOODS, type TacoFood } from "@/lib/taco-data";
+import { matchesTacoFoodQuery, TACO_FOODS, type TacoFood } from "@/lib/taco-data";
 
 interface MealSection {
   id: string;
@@ -58,12 +61,6 @@ interface DietItem {
 const format = (value: number, digits = 0) =>
   value.toLocaleString("pt-BR", { maximumFractionDigits: digits });
 
-const normalize = (value: string) =>
-  value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase();
-
 const today = () => new Date().toLocaleDateString("sv-SE");
 
 const POPULAR_FOODS = [
@@ -73,7 +70,6 @@ const POPULAR_FOODS = [
   "Banana, prata, crua",
   "Ovo, de galinha, inteiro, cozido/10minutos",
 ];
-const SEARCH_STOP_WORDS = new Set(["de", "da", "do", "das", "dos", "e"]);
 const TACO_FOODS_BY_ID = new Map(TACO_FOODS.map((food) => [food.id, food]));
 
 const MEAL_TIMES: Record<string, string> = {
@@ -182,6 +178,7 @@ export function NutritionHome() {
     DEFAULT_SECTIONS,
   );
   const [goal] = usePersistedState<DailyGoal>(GOAL_KEY, DEFAULT_GOAL);
+  const [profile] = usePersistedState<Profile>(PROFILE_KEY, DEFAULT_PROFILE);
   const [water, setWater] = usePersistedState<{ day: string; n: number }>(WATER_KEY, {
     day: "",
     n: 0,
@@ -200,18 +197,9 @@ export function NutritionHome() {
   }, [sections, activeSection]);
 
   const filteredFoods = useMemo(() => {
-    const terms = normalize(query)
-      .split(/[\s,]+/)
-      .filter((term) => term && !SEARCH_STOP_WORDS.has(term));
-
     return TACO_FOODS.filter((food) => {
-      if (terms.length === 0) return POPULAR_FOODS.some((name) => name === food.nome);
-      const name = normalize(food.nome);
-      return terms.every((term) =>
-        term === "branco"
-          ? name.includes("arroz") && (name.includes("tipo 1") || name.includes("tipo 2"))
-          : name.includes(term),
-      );
+      if (!query.trim()) return POPULAR_FOODS.some((name) => name === food.nome);
+      return matchesTacoFoodQuery(food.nome, query);
     }).slice(0, 5);
   }, [query]);
 
@@ -254,7 +242,7 @@ export function NutritionHome() {
   const portionGrams = Math.max(0, Number(grams.replace(",", ".")) || 0);
   const portionFactor = portionGrams / 100;
   const todaysWater = water.day === today() ? water.n : 0;
-  const waterTarget = 8;
+  const waterTarget = Math.max(8, Math.round((profile.weight * 35) / 250));
   const dateLabel = new Intl.DateTimeFormat("pt-BR", {
     weekday: "long",
     day: "numeric",
